@@ -1,0 +1,44 @@
+---
+sidebar_position: 2
+---
+
+# Creating your first room
+
+To create your first room with Hackbox, you need to send a POST request to `https://app.hackbox.ca/rooms` containing the following data:
+
+| Parameter Name | Type | Default | Required | Description |
+| -------------- | ---- | ------- | -------- | ----------- |
+| `hostId` | `string` | N/A | Yes | This is the "password" to your Hackbox room - it will be used to connect to the WebSocket. If shared, your room could be hijacked. Don't reuse this. |
+| `twitchRequired` | `boolean` | `false` | No | Sets whether or not the room requires Twitch authentication to join. |
+| `roomCode` | `string` | `undefined` | No | If provided, you can set a custom room code. |
+
+And as a typescript interface:
+
+```typescript
+interface CreateRoomQueryParams {
+    hostId: string;
+    twitchRequired: boolean | undefined;
+    roomCode: string | undefined;
+}
+```
+
+
+After sending this, Hackbox will respond in one of the following ways:
+
+```json
+// room successfully created
+{
+    "ok": true,
+    "roomCode": "[ROOM CODE HERE]"
+}
+
+// room code is unavailable
+{
+    "error": "room code unavailable"
+}
+
+// the room code doesn't follow the required format (4 letters)
+{
+    "error": "invalid room code"
+}
+```
