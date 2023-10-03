@@ -20,6 +20,12 @@ interface RoomFetchResponse {
   twitchRequired?: Boolean;
 }
 
+interface RoomCreationResponse {
+  ok: boolean;
+  error: string | undefined;
+  roomCode: string | undefined;
+}
+
 app.get("/rooms/:roomCode", (req, res) => {
   const roomCode = req.params.roomCode as string;
   const room = roomManager.findRoom(roomCode);
@@ -46,9 +52,9 @@ app.post("/rooms", (req, res) => {
 
   if (specifiedRoomCode) {
     if (specifiedRoomCode.length !== 4)
-      return res.json({ error: "invalid room code" });
+      return res.json({ ok: false, error: "invalid room code"} as RoomCreationResponse);
     if (roomManager.findRoom(specifiedRoomCode))
-      return res.json({ error: "room code unavailable" });
+      return res.json({ ok: false, error: "room code unavailable"} as RoomCreationResponse);
     roomCode = specifiedRoomCode;
   } else {
     roomCode = roomManager.generateRoomCode();
@@ -56,7 +62,7 @@ app.post("/rooms", (req, res) => {
 
   newRoom = roomManager.createRoom(req.body.hostId, roomCode, twitchRequired);
 
-  return res.json({ ok: true, roomCode: newRoom.id });
+  return res.json({ ok: true, roomCode: newRoom.id } as RoomCreationResponse);
 });
 
 const server = createServer(app);
