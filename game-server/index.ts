@@ -15,7 +15,7 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-interface RoomCreateResponse {
+interface RoomFetchResponse {
   exists: Boolean;
   twitchRequired?: Boolean;
 }
@@ -24,7 +24,7 @@ app.get("/rooms/:roomCode", (req, res) => {
   const roomCode = req.params.roomCode as string;
   const room = roomManager.findRoom(roomCode);
 
-  const response: RoomCreateResponse = { exists: !!room };
+  const response: RoomFetchResponse = { exists: !!room };
   if (room) response.twitchRequired = room.twitchRequired;
 
   res.json(response);
