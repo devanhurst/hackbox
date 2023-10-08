@@ -3,6 +3,7 @@ import Room from "./Room";
 import Host from "./Host";
 import { authenticateWithTwitch } from "./helpers/twitch";
 import { MemberMetadata } from "./Member";
+import { CronJob } from 'cron';
 
 export interface HandshakeMetadata {
   twitchAccessToken?: string;
@@ -15,6 +16,15 @@ class RoomManager {
   constructor() {
     this.io = null;
     this.rooms = {};
+
+    const job = new CronJob(
+      '0 0 */1 * * *',
+      () => {
+        this.removeOldRooms();
+      },
+      null,
+      true,
+    );
   }
 
   generateRoomCode = () => {
@@ -101,7 +111,7 @@ class RoomManager {
     const DELETION_TIME = process.env.ROOM_DELETION_TIME_HOURS * HOUR_IN_SECONDS;
 
     for (const room of Object.values(this.rooms)) {
-      if (room.age() >= DELETION_TIME) {
+      if (room.timeSinceLastActivity() >= DELETION_TIME) {
         console.log(`Deleted room with ID ${room.id}`);
         delete this.rooms[room.id];
       }

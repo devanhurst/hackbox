@@ -9,6 +9,7 @@ class Room {
   members: { [id: string]: Member };
   readonly twitchRequired: Boolean;
   readonly createdAt: number;
+  lastActivity: number;
 
   constructor(roomCode: string, host: Host, twitchRequired: Boolean) {
     this.id = roomCode;
@@ -16,13 +17,21 @@ class Room {
     this.members = {};
     this.twitchRequired = twitchRequired;
     this.createdAt = Date.now();
+    this.lastActivity = this.createdAt;
   }
 
   /**
-   * Returns this room's age in seconds.
+   * @returns Returns this room's age, in seconds
    */
   age(): number {
     return (Date.now() - this.createdAt) / 1000;
+  }
+  
+  /**
+   * @returns The time since the room's last activity, in seconds
+   */
+  timeSinceLastActivity(): number {
+    return (Date.now() - this.lastActivity) / 1000;
   }
 
   join(
@@ -51,10 +60,12 @@ class Room {
 
   sendPrivateStateToHost() {
     this.host.send("state.host", this.privateState);
+    this.lastActivity = Date.now();
   }
 
   sendEventToRoom(payload: object) {
     roomManager.io?.to(this.id).emit("event", payload);
+    this.lastActivity = Date.now();
   }
 
   get privateState() {

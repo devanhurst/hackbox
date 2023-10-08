@@ -26,15 +26,18 @@ class Host {
         const player = this.room.members[recipientId];
         player?.updateState(payload.data);
       });
+      this.room.lastActivity = Date.now();
     });
 
     socket.on("event", async (payload) => {
       this.room.sendEventToRoom(payload);
+      this.room.lastActivity = Date.now();
     });
   }
 
   send(eventName: string, payload: unknown) {
     this.socket?.emit(eventName, payload);
+    this.room.lastActivity = Date.now();
   }
 
   get room() {
