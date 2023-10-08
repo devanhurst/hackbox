@@ -4,16 +4,18 @@ import Member, { MemberMetadata } from "./Member";
 import roomManager from "./RoomManager";
 
 class Room {
-  id: string;
+  readonly id: string;
   host: Host;
   members: { [id: string]: Member };
-  twitchRequired: Boolean;
+  readonly twitchRequired: Boolean;
+  readonly createdAt: number;
 
   constructor(roomCode: string, host: Host, twitchRequired: Boolean) {
     this.id = roomCode;
     this.host = host;
     this.members = {};
     this.twitchRequired = twitchRequired;
+    this.createdAt = Date.now();
   }
 
   join(
