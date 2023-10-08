@@ -18,6 +18,13 @@ class Room {
     this.createdAt = Date.now();
   }
 
+  /**
+   * Returns this room's age in seconds.
+   */
+  age(): number {
+    return (Date.now() - this.createdAt) / 1000;
+  }
+
   join(
     userId: string,
     userName: string,
