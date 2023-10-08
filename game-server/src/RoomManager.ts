@@ -95,6 +95,18 @@ class RoomManager {
 
     room.join(userId, userName, socket, memberMetadata);
   }
+
+  removeOldRooms() {
+    const HOUR_IN_SECONDS = 60 * 60; // readability purposes only
+    const DELETION_TIME = process.env.ROOM_DELETION_TIME_HOURS * HOUR_IN_SECONDS;
+
+    for (const room of Object.values(this.rooms)) {
+      if (room.age() >= DELETION_TIME) {
+        console.log(`Deleted room with ID ${room.id}`);
+        delete this.rooms[room.id];
+      }
+    }
+  }
 }
 
 export default new RoomManager();
