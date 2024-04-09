@@ -7,6 +7,7 @@ let mountedAt: number;
 
 const defaultProps = {
   event: "text",
+  persistent: false,
   style: {
     color: "black",
     align: "left",
@@ -39,13 +40,19 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 const respond = () => {
   if (inputState.value.length === 0) return;
-  inputState.submitted = true;
-  window.removeEventListener("keydown", handleKeydown);
   socket.emit("msg", {
     event: props.event,
     value: inputState.value,
     ms: Date.now() - mountedAt,
   });
+
+  if (props.persistent) {
+    inputState.value = "";
+  } else {
+    inputState.submitted = true;
+    window.removeEventListener("keydown", handleKeydown);
+  }
+
 };
 
 onMounted(() => {
