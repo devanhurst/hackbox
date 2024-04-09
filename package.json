@@ -21,5 +21,8 @@
   "homepage": "https://github.com/devanhurst/hackbox#readme",
   "devDependencies": {
     "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=20.12.1"
   }
 }
