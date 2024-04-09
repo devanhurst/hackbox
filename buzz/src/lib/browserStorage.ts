@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 
-const APP_PREFIX = "hackbox-host";
+const APP_PREFIX = "hackbox-buzz";
 const USERID_KEY = `${APP_PREFIX}-userId`;
 const VOLUME_KEY = `${APP_PREFIX}-volume`;
 

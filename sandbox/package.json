@@ -1,5 +1,5 @@
 {
-  "name": "hackbox-host",
+  "name": "hackbox-sandbox",
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
@@ -7,7 +7,7 @@
     "preview": "vite preview --port 4173",
     "test:unit": "vitest --environment jsdom",
     "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "type-check": "vue-tsc --noEmit -p tsconfig.json --composite false",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {

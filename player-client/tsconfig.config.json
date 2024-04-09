@@ -2,8 +2,6 @@
   "extends": "@tsconfig/node20/tsconfig.json",
   "include": ["vite.config.*", "vitest.config.*", "cypress.config.*"],
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
     "composite": true,
     "types": ["node"]
   }

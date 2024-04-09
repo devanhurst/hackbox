@@ -1,7 +1,6 @@
-import * as DOMPurify from "dompurify";
+import xss from "xss";
 import { marked } from "marked";
 
 export default (text: string) => {
-  const markdown = marked.parse(text) as string;
-  return DOMPurify.sanitize(markdown);
+  return xss(marked.parse(text) as string);
 };
