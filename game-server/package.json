@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm install && npx tsc",
     "start": "node dist/index.js",
-    "dev": "concurrently \"npx tsc --watch\" \"nodemon dist/index.js\"",
+    "dev": "PORT=9000 concurrently \"npx tsc --watch\" \"nodemon dist/index.js\"",
     "update-server": "git fetch && git reset --hard origin/main && npm run build && PORT=3000 npm run start"
   },
   "keywords": [],
