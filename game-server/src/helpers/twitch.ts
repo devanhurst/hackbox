@@ -14,24 +14,28 @@ export const authenticateWithTwitch = async (
 
   if (env.MOCK_HTTP) return authenticateWithTwitchMock();
 
-  const response = await axios({
-    method: "GET",
-    url: "https://api.twitch.tv/helix/users",
-    headers: {
-      Authorization: "Bearer " + twitchAccessToken,
-      "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
-    },
-  });
+  try {
+    const response = await axios({
+      method: "GET",
+      url: "https://api.twitch.tv/helix/users",
+      headers: {
+        Authorization: "Bearer " + twitchAccessToken,
+        "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
+      },
+    });
 
-  if (response.status === 200) {
-    const userData = response.data.data[0];
+    if (response.status === 200) {
+      const userData = response.data.data[0];
 
-    return {
-      id: userData.id,
-      username: userData.display_name,
-      photo: userData.profile_image_url,
-    };
-  } else {
+      return {
+        id: userData.id,
+        username: userData.display_name,
+        photo: userData.profile_image_url,
+      };
+    } else {
+      return undefined;
+    }
+  } catch {
     return undefined;
   }
 };
