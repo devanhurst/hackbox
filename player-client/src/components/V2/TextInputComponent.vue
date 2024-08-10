@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Socket } from "socket.io-client";
-import { inject, reactive, onMounted, onUnmounted } from "vue";
+import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
+import { debounce } from '@/lib/helpers';
+
 const socket: Socket = inject("socket") as Socket;
 
 let mountedAt: number;
@@ -34,12 +36,23 @@ const inputState = reactive({
   submitted: false,
 });
 
+const sendWorkInProgress = debounce((value) => {
+  socket.emit("msg", {
+    event: `${props.event}--changed`,
+    value,
+    ms: Date.now() - mountedAt,
+  });
+}, 300);
+
+watch(inputState, () => sendWorkInProgress(inputState.value));
+
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === "Enter") respond();
 };
 
 const respond = () => {
   if (inputState.value.length === 0) return;
+
   socket.emit("msg", {
     event: props.event,
     value: inputState.value,
@@ -52,7 +65,6 @@ const respond = () => {
     inputState.submitted = true;
     window.removeEventListener("keydown", handleKeydown);
   }
-
 };
 
 onMounted(() => {
