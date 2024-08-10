@@ -82,6 +82,17 @@ onUnmounted(() => {
 <template>
   <div class="text-input-wrapper">
     <input
+      v-if="props.type === 'number'"
+      class="text-input"
+      type="number"
+      pattern="[0-9]*"
+      :step="props.step || 1"
+      :min="props.min"
+      :max="props.max"
+      v-model="inputState.value"
+      :disabled="inputState.submitted" />
+    <input
+      v-else
       class="text-input"
       type="text"
       v-model="inputState.value"
