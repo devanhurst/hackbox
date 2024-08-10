@@ -17,7 +17,6 @@ class Member {
   roomCode: string;
   state: MemberState;
   metadata: MemberMetadata;
-  messages: object[];
 
   constructor(
     id: string,
@@ -29,7 +28,6 @@ class Member {
     this.name = name;
     this.roomCode = roomCode;
     this.socket = null;
-    this.messages = [];
     this.metadata = metadata;
     this.state = {
       version: 1,
@@ -76,8 +74,18 @@ class Member {
         event: payload.event,
         message: payload,
       };
-      this.messages.push(message);
       this.room.host.send("msg", message);
+    });
+
+    this.socket.on("change", (payload) => {
+      const message = {
+        id: randomUUID(),
+        from: this.id,
+        timestamp: Date.now(),
+        event: payload.event,
+        message: payload,
+      };
+      this.room.host.send("change", message);
     });
 
     this.sendState();

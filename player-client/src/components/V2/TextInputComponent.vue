@@ -36,15 +36,17 @@ const inputState = reactive({
   submitted: false,
 });
 
-const sendWorkInProgress = debounce((value) => {
-  socket.emit("msg", {
-    event: `${props.event}--changed`,
-    value,
+const submitWip = debounce(() => {
+  if (inputState.submitted) return;
+
+  socket.emit("change", {
+    event: props.event,
+    value: inputState.value,
     ms: Date.now() - mountedAt,
   });
-}, 300);
+});
 
-watch(inputState, () => sendWorkInProgress(inputState.value));
+watch(inputState, submitWip);
 
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === "Enter") respond();

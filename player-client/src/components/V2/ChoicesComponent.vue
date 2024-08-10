@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
 import type { Socket } from "socket.io-client";
-import { inject, onMounted, reactive } from "vue";
+import { inject, onMounted, reactive, watch } from "vue";
+import { debounce } from "@/lib/helpers";
+
 const socket: Socket = inject("socket") as Socket;
 
 let mountedAt: number;
@@ -88,6 +90,20 @@ const state: State = reactive({
   submitted: false,
 });
 
+const submitWip = debounce(() => {
+  if (state.submitted) return;
+
+  const response = props.multiSelect ? state.selections : state.selections[0];
+
+  socket.emit("change", {
+    event: props.event,
+    value: response,
+    ms: Date.now() - mountedAt,
+  });
+})
+
+watch(state, submitWip)
+
 const submitResponse = () => {
   state.submitted = true;
   const response = props.multiSelect ? state.selections : state.selections[0];
@@ -144,7 +160,7 @@ onMounted(() => {
       :label="props.submit.label"
       :keys="['Enter']"
       :style="{ ...props.style, ...props.submit.style }"></choice-button>
-  </div>  
+  </div>
   <div v-else class="choices">
     <choice-button
       v-for="choice in state.choices"
