@@ -4,15 +4,19 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "build": "npm install && npx tsc",
+    "build": "npm install && npx tsc && npm run sentry:sourcemaps",
     "start": "node dist/index.js",
     "dev": "PORT=9000 concurrently \"npx tsc --watch\" \"nodemon dist/index.js\"",
-    "update-server": "git fetch && git reset --hard origin/main && npm run build && PORT=3000 npm run start"
+    "update-server": "git fetch && git reset --hard origin/main && npm run build && PORT=3000 npm run start",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project game-server ./dist && sentry-cli sourcemaps upload --org hackbox --project game-server ./dist"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/cli": "^2.33.1",
+    "@sentry/node": "^8.26.0",
+    "@sentry/profiling-node": "^8.26.0",
     "axios": "^1.6.8",
     "cors": "^2.8.5",
     "cron": "^3.1.7",

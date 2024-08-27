@@ -1,4 +1,6 @@
 import "dotenv/config";
+import "./instrument.js";
+import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
@@ -67,6 +69,12 @@ app.post("/rooms", (req, res) => {
 
   return res.json({ ok: true, roomCode: newRoom.id } as RoomCreationResponse);
 });
+
+app.get("/debug-sentry", function mainHandler(req, res) {
+  throw new Error("My first Sentry error!");
+});
+
+Sentry.setupExpressErrorHandler(app);
 
 const server = createServer(app);
 

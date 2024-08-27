@@ -8,6 +8,13 @@ export interface HandshakeMetadata {
   twitchAccessToken?: string;
 }
 
+const RESERVED_ROOMS = [
+  {
+    roomCode: "DREW",
+    hostId: "219e1ece-3b83-4586-bd3a-bab543463dff",
+  },
+];
+
 class RoomManager {
   io: Server | null;
   rooms: Map<string, Room>;
@@ -15,7 +22,14 @@ class RoomManager {
   constructor() {
     this.io = null;
     this.rooms = new Map<string, Room>();
+    this.createReservedRooms();
   }
+
+  createReservedRooms = () => {
+    RESERVED_ROOMS.forEach((reservedRoom) => {
+      this.createRoom(reservedRoom.hostId, reservedRoom.roomCode);
+    });
+  };
 
   generateRoomCode = () => {
     const consonants = [
@@ -58,6 +72,7 @@ class RoomManager {
       new Host(hostId, roomCode),
       twitchRequired
     );
+
     this.rooms.set(roomCode, newRoom);
     return newRoom;
   }
