@@ -70,8 +70,8 @@ app.post("/rooms", (req, res) => {
   return res.json({ ok: true, roomCode: newRoom.id } as RoomCreationResponse);
 });
 
-app.get("/debug-sentry", function mainHandler(req, res) {
-  throw new Error("My first Sentry error!");
+app.get("/healthcheck", (_, res) => {
+  res.json({ ok: true });
 });
 
 Sentry.setupExpressErrorHandler(app);
