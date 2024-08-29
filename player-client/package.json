@@ -16,6 +16,7 @@
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/vue-fontawesome": "^3.0.6",
+    "@sentry/vite-plugin": "^2.22.3",
     "@sentry/vue": "^8.27.0",
     "@types/dompurify": "^3.0.5",
     "dompurify": "^3.1.0",
