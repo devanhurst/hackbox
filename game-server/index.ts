@@ -5,8 +5,8 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
-import roomManager, { HandshakeMetadata } from "./src/RoomManager";
-import Room from "./src/Room";
+import { HostSocket, MemberSocket } from "./src/sockets";
+import { Room } from "./src/models";
 
 const port: number = parseInt(process.env.PORT, 10);
 
@@ -14,60 +14,36 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-interface RoomFetchResponse {
-  exists: Boolean;
-  twitchRequired?: Boolean;
-}
-
 interface RoomCreationResponse {
   ok: boolean;
   error: string | undefined;
   roomCode: string | undefined;
 }
 
-app.get("/rooms/:roomCode", (req, res) => {
+app.get("/rooms/:roomCode", async (req, res) => {
   const roomCode = req.params.roomCode as string;
-  const room = roomManager.findRoom(roomCode);
+  const room = await Room.getOne(roomCode);
 
-  const response: RoomFetchResponse = { exists: !!room };
+  const response = { exists: !!room, twitchRequired: false };
   if (room) response.twitchRequired = room.twitchRequired;
 
   res.json(response);
 });
 
-app.get("/rooms/:roomCode/auth-host/:userId", (req, res) => {
+app.get("/rooms/:roomCode/auth-host/:userId", async (req, res) => {
   const { roomCode, userId } = req.params;
-  const room = roomManager.findRoom(roomCode);
-  const authed = userId === room?.host.id;
+  const room = await Room.getOne(roomCode);
+  const authed = userId === room?.hostId;
   res.json({ authed });
 });
 
-app.post("/rooms", (req, res) => {
-  let roomCode: string;
-  let newRoom: Room;
+app.post("/rooms", async (req, res) => {
+  const newRoom = await Room.create({
+    hostId: req.body.hostId,
+    twitchRequired: !!req.body.twitchRequired || false,
+  });
 
-  const specifiedRoomCode = req.body.roomCode as string;
-  const twitchRequired = !!req.body.twitchRequired || false;
-
-  if (specifiedRoomCode) {
-    if (specifiedRoomCode.length !== 4)
-      return res.json({
-        ok: false,
-        error: "invalid room code",
-      } as RoomCreationResponse);
-    if (roomManager.findRoom(specifiedRoomCode))
-      return res.json({
-        ok: false,
-        error: "room code unavailable",
-      } as RoomCreationResponse);
-    roomCode = specifiedRoomCode;
-  } else {
-    roomCode = roomManager.generateRoomCode();
-  }
-
-  newRoom = roomManager.createRoom(req.body.hostId, roomCode, twitchRequired);
-
-  return res.json({ ok: true, roomCode: newRoom.id } as RoomCreationResponse);
+  return res.json({ ok: true, roomCode: newRoom.code } as RoomCreationResponse);
 });
 
 app.get("/healthcheck", (_, res) => {
@@ -84,8 +60,6 @@ const io = new Server(server, {
   },
 });
 
-roomManager.io = io;
-
 interface Handshake {
   userId: string;
   userName: string;
@@ -93,26 +67,41 @@ interface Handshake {
   metadata: string;
 }
 
+interface HandshakeMetadata {
+  twitchAccessToken?: string;
+}
+
 io.on("connection", async (socket: Socket) => {
   const handshake = socket.handshake.query as unknown as Handshake;
   const { userId, userName, roomCode } = handshake;
-  let { metadata } = handshake;
 
-  let handshakeMetadata = {} as HandshakeMetadata;
+  let metadata: HandshakeMetadata = {};
 
   try {
-    handshakeMetadata = JSON.parse(metadata) as HandshakeMetadata;
+    metadata = JSON.parse(handshake.metadata) as HandshakeMetadata;
   } catch (error) {
-    console.error("Handshake metadata was not a JSON string.");
+    console.error(
+      "Handshake metadata was not a JSON string.",
+      handshake.metadata
+    );
   }
 
-  await roomManager.joinRoom(
-    socket,
-    userId,
-    userName,
-    roomCode,
-    handshakeMetadata
-  );
+  const room = await Room.getOne(roomCode);
+
+  if (!room) {
+    socket.emit("error", { message: "This room does not exist." });
+    socket.disconnect(true);
+    return;
+  }
+
+  socket.data.userId = userId;
+  socket.data.roomCode = roomCode;
+
+  if (userId === room.hostId) {
+    HostSocket.joinRoom(io, { socket });
+  } else {
+    MemberSocket.joinRoom(io, { socket, userName, metadata });
+  }
 });
 
 server.listen(port);

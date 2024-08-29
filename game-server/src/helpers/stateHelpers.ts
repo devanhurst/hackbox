@@ -1,6 +1,8 @@
 import { MemberState } from "../../types";
+import { randomUUID } from "crypto";
+import { Member } from "../models";
 
-const mergeStates = (
+export const getMemberState = (
   oldState: MemberState,
   newState: Partial<MemberState>
 ): MemberState => {
@@ -39,7 +41,28 @@ const mergeStates = (
       combinedState.ui.main = { ...oldState.ui.main, ...newState.ui.main };
   }
 
+  combinedState.ui.main.components = combinedState.ui.main.components.map(
+    (component) => ({ key: randomUUID(), ...component })
+  );
+
   return combinedState;
 };
 
-export { mergeStates };
+export const getHostState = async (roomCode: string) => {
+  const members = await Member.getManyForRoom(roomCode);
+
+  return {
+    members: members.reduce((acc: { [memberId: string]: object }, member) => {
+      const metadata = (member.metadata || {}) as any;
+
+      acc[member.userId] = {
+        id: member.userId,
+        name: member.userName,
+        metadata,
+        twitchData: metadata.twitch,
+      };
+
+      return acc;
+    }, {}),
+  };
+};
