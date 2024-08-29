@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@opentelemetry/instrumentation-socket.io": "^0.41.0",
     "@sentry/cli": "^2.33.1",
     "@sentry/node": "^8.26.0",
     "@sentry/profiling-node": "^8.26.0",
