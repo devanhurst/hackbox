@@ -18,7 +18,7 @@ Sentry.init({
   dsn: "https://c461bfb8904ecb4c0a266b1751087809@o4507848851652608.ingest.us.sentry.io/4507861181792256",
   integrations: [
     Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration(),
+    Sentry.replayIntegration({ maskAllText: false, blockAllMedia: false }),
   ],
   tracesSampleRate: 1.0,
   tracePropagationTargets: ["localhost", /^https:\/\/app\.hackbox\.ca/],
