@@ -64,6 +64,8 @@ onMounted(() => {
 
 const updateRoom = async () => {
   const roomCode = getRoomCode();
+  if (roomCode.length !== 4) return;
+
   state.room = await getRoom(roomCode);
 };
 
