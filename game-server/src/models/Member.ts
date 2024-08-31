@@ -70,10 +70,17 @@ export const create = async ({
   userId,
   userName,
   roomCode,
+  metadata,
 }: NewMember): Promise<Member> => {
   await db
     .insert(members)
-    .values({ userId, userName, roomCode, state: getDefaultState(userName) })
+    .values({
+      userId,
+      userName,
+      roomCode,
+      state: getDefaultState(userName),
+      metadata,
+    })
     .onConflictDoNothing();
 
   const member = (await getOneForRoomAndUser({

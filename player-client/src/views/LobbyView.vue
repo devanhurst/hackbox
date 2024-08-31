@@ -63,10 +63,7 @@ onMounted(() => {
 });
 
 const updateRoom = async () => {
-  const roomCode = getRoomCode();
-  if (roomCode.length !== 4) return;
-
-  state.room = await getRoom(roomCode);
+  state.room = await getRoom(getRoomCode());
 };
 
 const setRoomCodeFromInput = (event: Event) => {
