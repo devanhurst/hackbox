@@ -76,7 +76,7 @@ export const create = async ({
     .insert(members)
     .values({
       userId,
-      userName,
+      userName: userName.toUpperCase(),
       roomCode,
       state: getDefaultState(userName),
       metadata,

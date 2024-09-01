@@ -1,6 +1,6 @@
 import { authenticateWithTwitch } from "../helpers/twitch";
 import { randomUUID } from "crypto";
-import { Room, Member } from "../models";
+import { Room, Member, Message } from "../models";
 import { getHostState } from "../helpers/stateHelpers";
 import { MemberType } from "../models/Member";
 
@@ -61,15 +61,23 @@ export const joinRoom = async (io: any, options: JoinRoomInput) => {
   // When a member intentionally sends a message, this message is sent.
   // Decorate it and send it to the host.
   socket.on("msg", async (payload: any) => {
+    const now = Date.now();
+
     const message = {
       id: randomUUID(),
       from: socket.data.userId,
-      timestamp: Date.now(),
+      timestamp: now,
       event: payload.event,
       message: payload,
     };
 
     sendToHost("msg", message);
+
+    Message.create({
+      memberId: member.id,
+      receivedAt: new Date(now),
+      payload,
+    });
   });
 
   // When a member makes a change to a frontend input, this message is sent.
