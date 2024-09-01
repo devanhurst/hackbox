@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
+import SortOption from "./Sort/SortOption.vue";
 import type { Socket } from "socket.io-client";
 import { inject, onMounted, reactive, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
@@ -11,9 +12,7 @@ let mountedAt: number;
 interface Choice {
   label: string;
   value: string;
-  keys: string[];
   style?: object;
-  selected?: boolean;
 }
 
 const defaultProps = {
@@ -73,7 +72,6 @@ const props = {
 
 interface State {
   choices: Choice[];
-  selections: string[];
   submitted: boolean;
 }
 
@@ -82,7 +80,6 @@ const state: State = reactive({
     ...choice,
     selected: false,
   })),
-  selections: [],
   submitted: false,
 });
 
@@ -103,13 +100,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="choices">
+  <div class="sort-options">
     <VueDraggable ref="el" v-model="state.choices" :disabled="state.submitted">
       <div v-for="choice in state.choices" :key="choice.value">
-        <choice-button
+        <sort-option
           :key="choice.value"
           :label="choice.label"
-          :style="{ ...props.style, ...choice.style }"></choice-button>
+          :style="{ ...props.style, ...choice.style }"></sort-option>
       </div>
     </VueDraggable>
     <choice-button
@@ -123,7 +120,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.choices {
+.sort-options {
   display: flex;
   flex-direction: column;
 }

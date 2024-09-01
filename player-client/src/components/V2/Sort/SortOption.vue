@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import markdown from "@/lib/markdown";
-import { ref, reactive, onUnmounted, onMounted, computed } from "vue";
+import { ref, reactive, computed } from "vue";
 
 export interface StyleProps {
   color: string;
@@ -19,16 +19,15 @@ export interface StyleProps {
 export interface Props {
   label: string;
   style: Partial<StyleProps>;
-  keys?: string[];
   onSelect?: () => void;
 }
 
 export interface State {
-  selected: boolean;
+  submitted: boolean;
 }
 
 const state: State = reactive({
-  selected: false,
+  submitted: false,
 });
 
 const defaultProps = {
@@ -51,11 +50,7 @@ const defaultProps = {
 };
 
 const customProps = withDefaults(defineProps<Props>(), {
-  onSelect: () => {
-    return;
-  },
   label: () => "",
-  keys: () => [],
   style: () => ({}),
 });
 
@@ -75,40 +70,18 @@ const props = {
 const button = ref<HTMLButtonElement>();
 const label = computed(() => markdown(props.label));
 
-const handleKeydown = (event: KeyboardEvent) => {
-  if (event.repeat) return;
-
-  const eventKey = event.key.toLowerCase();
-  if (props.keys.map((k: string) => k.toLowerCase()).includes(eventKey)) {
-    button.value?.click();
-  }
-};
-
-const handleSelect = () => {
-  state.selected = !state.selected;
-  props.onSelect();
-};
-
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
-});
 </script>
 
 <template>
   <button
     ref="button"
-    @click="handleSelect"
-    :disabled="state.selected"
-    :class="`choice ${state.selected ? 'choice--selected' : ''}`"
+    :disabled="state.submitted"
+    class="sort-option"
     v-html="label"></button>
 </template>
 
 <style scoped>
-.choice {
+.sort-option {
   display: flex;
   width: v-bind("props.style.width");
   border: v-bind("props.style.border");
@@ -122,18 +95,7 @@ onUnmounted(() => {
   font-family: v-bind("props.style.fontFamily");
 }
 
-.choice--selected {
-  color: v-bind("props.style.hover.color || props.style.color");
-  background: v-bind(
-    "props.style.hover.background || props.style.hover.background"
-  );
-}
-
-.choice--not-selected {
-  opacity: 0.6;
-}
-
-.choice:hover:not(:disabled) {
+.sort-option:hover:not(:disabled) {
   cursor: pointer;
   color: v-bind("props.style.hover.color || props.style.hover.color");
   background: v-bind(
@@ -141,11 +103,7 @@ onUnmounted(() => {
   );
 }
 
-.choice:disabled {
-  opacity: 0.6;
-}
-
-.choice--not-selected {
+.sort-option:disabled {
   opacity: 0.6;
 }
 </style>
