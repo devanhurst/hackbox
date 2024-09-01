@@ -106,6 +106,7 @@ onMounted(() => {
         <sort-option
           :key="choice.value"
           :label="choice.label"
+          :submitted="state.submitted"
           :style="{ ...props.style, ...choice.style }"></sort-option>
       </div>
     </VueDraggable>
