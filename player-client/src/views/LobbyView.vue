@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted, ref } from "vue";
+import { useRoute } from 'vue-router'
+
 import {
   getRoomCode,
   getUserName,
@@ -58,8 +60,11 @@ const logOutOfTwitch = () => {
   }
 };
 
+const route = useRoute()
+
 onMounted(() => {
   updateTwitchData();
+  updateRoom();
 });
 
 const updateRoom = async () => {
@@ -97,7 +102,7 @@ const joinGame = () => {
 };
 
 const state = reactive({
-  roomCode: getRoomCode(),
+  roomCode: route.query.room?.slice(0,4) || getRoomCode(),
   userName: getUserName(),
   room: { exists: false, twitchRequired: false } as FindRoomResponse,
 });
