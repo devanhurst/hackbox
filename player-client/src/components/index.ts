@@ -19,4 +19,5 @@ export default {
   V2ButtonComponent: V2.ButtonComponent,
   V2TextInputComponent: V2.TextInputComponent,
   V2RangeComponent: V2.RangeComponent,
+  V2SortComponent: V2.SortComponent,
 };

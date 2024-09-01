@@ -24,6 +24,7 @@
     "socket.io-client": "^4.7.5",
     "uuid": "^9.0.1",
     "vue": "^3.4.21",
+    "vue-draggable-plus": "^0.5.3",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {

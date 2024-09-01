@@ -20,7 +20,7 @@ export interface Props {
   label: string;
   keys: string[];
   style: Partial<StyleProps>;
-  onSelect: () => void;
+  onSelect?: () => void;
 }
 
 export interface State {

@@ -4,6 +4,7 @@ import TextComponent from "./TextComponent.vue";
 import ButtonComponent from "./ButtonComponent.vue";
 import TextInputComponent from "./TextInputComponent.vue";
 import RangeComponent from "./RangeComponent.vue";
+import SortComponent from "./SortComponent.vue";
 
 export default {
   BuzzerComponent,
@@ -12,4 +13,5 @@ export default {
   ButtonComponent,
   TextInputComponent,
   RangeComponent,
+  SortComponent,
 };
