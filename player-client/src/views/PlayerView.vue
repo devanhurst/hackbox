@@ -38,6 +38,8 @@ const defaultState: PlayerState = {
 
 const { socket, state } = initializePlayerSocket(router, defaultState);
 provide("socket", socket);
+document.addEventListener('contextmenu', event => event.preventDefault());
+
 </script>
 
 <template>

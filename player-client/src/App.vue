@@ -26,5 +26,6 @@ body {
   box-sizing: border-box;
   font-family: Helvetica, sans-serif;
   overflow: hidden;
+  user-select: none;
 }
 </style>
