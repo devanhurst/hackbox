@@ -68,22 +68,20 @@ onMounted(() => {
 });
 
 const updateRoom = async () => {
-  state.room = await getRoom(getRoomCode());
+  state.room = await getRoom(state.roomCode as string);
 };
 
 const setRoomCodeFromInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const newRoomCode = target.value;
-  state.roomCode = newRoomCode;
-  setRoomCode(newRoomCode);
+  state.roomCode = newRoomCode.toUpperCase();
   updateRoom();
 };
 
 const setUserNameFromInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const newUserName = target.value;
-  state.userName = newUserName;
-  setUserName(newUserName);
+  state.userName = newUserName.toUpperCase();
 };
 
 const canJoin = computed(() => {
@@ -98,11 +96,14 @@ const joinGame = () => {
     return;
   }
 
+  setRoomCode(state.roomCode as string);
+  setUserName(state.userName as string);
+
   router.push("/play");
 };
 
 const state = reactive({
-  roomCode: route.query.room?.slice(0,4) || getRoomCode(),
+  roomCode: (route.query.room?.slice(0,4) || getRoomCode()),
   userName: getUserName(),
   room: { exists: false, twitchRequired: false } as FindRoomResponse,
 });

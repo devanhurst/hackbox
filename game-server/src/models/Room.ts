@@ -7,7 +7,7 @@ export type RoomInput = NewRoom;
 
 export const getOne = async (code: string) =>
   db.query.rooms.findFirst({
-    where: eq(rooms.code, code),
+    where: eq(rooms.code, code.toUpperCase()),
   });
 
 export const getAll = async () => db.query.rooms.findMany();
@@ -31,7 +31,7 @@ export const create = async (options: CreateRoomInput): Promise<Room> => {
       twitchRequired: false,
       persistent: false,
       ...options,
-      code,
+      code: code.toUpperCase(),
     })
     .onConflictDoNothing();
 
