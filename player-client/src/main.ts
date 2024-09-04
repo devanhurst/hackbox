@@ -3,6 +3,7 @@ import App from "./App.vue";
 import router from "./router";
 import components from "@/components";
 import * as Sentry from "@sentry/vue";
+import config from "@/config";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
@@ -15,15 +16,16 @@ const app = createApp(App);
 
 Sentry.init({
   app,
+  enabled: config.sentryEnabled,
   dsn: "https://c461bfb8904ecb4c0a266b1751087809@o4507848851652608.ingest.us.sentry.io/4507861181792256",
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({ maskAllText: false, blockAllMedia: false }),
   ],
-  tracesSampleRate: 1.0,
   tracePropagationTargets: ["localhost", /^https:\/\/app\.hackbox\.ca/],
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
+  tracesSampleRate: config.sentryTraceSampleRate,
+  replaysSessionSampleRate: config.sentrySessionReplaySampleRate,
+  replaysOnErrorSampleRate: config.sentryErrorReplaySampleRate,
 });
 
 app.use(router);
