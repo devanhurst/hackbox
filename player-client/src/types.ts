@@ -36,12 +36,14 @@ export interface UiState {
 }
 
 export interface PlayerState {
+  id: string;
   version: number;
   theme: ThemeState;
   ui: UiState;
 }
 
 export interface PlayerStatePayload {
+  id: string;
   version?: number;
   theme: ThemeState;
   ui: UiState;

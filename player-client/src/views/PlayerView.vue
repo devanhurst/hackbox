@@ -10,6 +10,7 @@ const props = defineProps({
 
 const defaultState: PlayerState = {
   version: 1,
+  id: "",
   theme: {
     header: {
       color: "black",

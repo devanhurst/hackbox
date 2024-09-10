@@ -1,22 +1,15 @@
-export interface Member {
-  id: string;
-  name: string;
-}
+import { TwitchMetadata } from "./lib/twitch";
 
-export interface PrivateRoomState {
-  members: { [id: string]: Member };
-}
-
-export interface Component {
+interface Component {
   type: string;
   props: { [key: string]: unknown };
 }
 
-export interface CustomFont {
+interface CustomFont {
   family: string;
 }
 
-export interface ThemeState {
+interface ThemeState {
   header: {
     color: string;
     background: string;
@@ -27,7 +20,7 @@ export interface ThemeState {
   fonts?: CustomFont[];
 }
 
-export interface UiState {
+interface UiState {
   header: {
     text: string;
   };
@@ -38,8 +31,13 @@ export interface UiState {
 }
 
 export interface MemberState {
+  id: string;
   version: number;
   theme: ThemeState;
   ui: UiState;
   presets?: { [key: string]: Component };
+}
+
+export interface MemberMetadata {
+  twitch?: TwitchMetadata;
 }

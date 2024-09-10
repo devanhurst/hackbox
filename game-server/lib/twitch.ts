@@ -44,6 +44,6 @@ const authenticateWithTwitchMock = (): TwitchMetadata => {
   return {
     id: "123456123456",
     username: "twitchuser",
-    photo: "assets/twiter_user_photo.png",
+    photo: "assets/twitch_user_photo.png",
   };
 };
