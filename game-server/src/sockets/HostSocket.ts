@@ -41,11 +41,11 @@ export const joinRoom = async (io: any, options: JoinRoomInput) => {
       },
     }));
 
+    Member.updateStates(recipients.map((r) => r.member));
     recipients.forEach((recipient: any) => {
+      if (!recipient.socket) return;
       recipient.socket.emit("state.member", recipient.member.state);
     });
-
-    Member.updateStates(recipients.map((r) => r.member));
   });
 
   // event
