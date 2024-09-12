@@ -1,19 +1,14 @@
 import { eq, and } from "drizzle-orm";
-import db, { members, SavedMember, InsertMemberInput } from "./db";
-import { defaultMemberState } from "../helpers";
-import { MemberMetadata, MemberState } from "../types";
+import db, { members } from "./db";
 
-interface UpdateMemberInput {
-  userName?: string;
-  metadata?: MemberMetadata;
-  state?: MemberState;
-}
+export type SavedMember = typeof members.$inferSelect;
+export type SavedMemberInput = typeof members.$inferInsert;
 
-export const getManyForRoom = async (roomCode: string) => {
+const getManyForRoom = async (roomCode: string) => {
   return db.query.members.findMany({ where: eq(members.roomCode, roomCode) });
 };
 
-export const findForUserAndRoom = async ({
+const findForUserAndRoom = async ({
   userId,
   roomCode,
 }: {
@@ -25,9 +20,7 @@ export const findForUserAndRoom = async ({
   });
 };
 
-export const create = async (
-  options: InsertMemberInput
-): Promise<SavedMember> => {
+const create = async (options: SavedMemberInput): Promise<SavedMember> => {
   const userName = options.userName.toUpperCase();
 
   await db
@@ -35,7 +28,6 @@ export const create = async (
     .values({
       ...options,
       userName,
-      state: defaultMemberState(userName),
     })
     .onConflictDoNothing();
 
@@ -47,9 +39,16 @@ export const create = async (
   }) as Promise<SavedMember>;
 };
 
-export const update = async (
+const update = async (
   id: string,
-  options: UpdateMemberInput
+  options: Partial<SavedMemberInput>
 ): Promise<void> => {
   await db.update(members).set(options).where(eq(members.id, id));
+};
+
+export default {
+  getManyForRoom,
+  findForUserAndRoom,
+  create,
+  update,
 };

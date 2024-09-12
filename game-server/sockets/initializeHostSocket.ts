@@ -1,16 +1,17 @@
 import { Socket } from "socket.io";
-import { RoomService } from "./RoomService";
+import { RoomService } from "../RoomService/RoomService";
 
 interface RegisterHostInput {
   socket: Socket;
   roomService: RoomService;
 }
 
-export const registerHost = async ({
+export const initializeHostSocket = async ({
   socket,
   roomService,
 }: RegisterHostInput) => {
-  roomService.updateHost();
+  socket.data.type = "host";
+  socket.data.userId = socket.handshake.query.userId;
 
   socket.on("member.update", async (payload: any) =>
     roomService.updateMembers({

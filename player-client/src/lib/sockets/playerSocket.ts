@@ -70,10 +70,6 @@ const initializePlayerSocket = (router: Router, defaultState: PlayerState) => {
 
   attachPlayerEvents(socket, defaultState, state, router);
 
-  setInterval(() => {
-    socket.emit("sync", { id: state.id });
-  }, 1000);
-
   return { socket, state };
 };
 

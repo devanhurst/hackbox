@@ -6,10 +6,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { Room } from "./models";
-import { RoomService } from "./RoomService";
-import { disconnect } from "../helpers";
-import { registerHost } from "./registerHost";
-import { registerMember } from "./registerMember";
+import { joinRoom } from "./RoomService";
 
 const port: number = parseInt(process.env.PORT, 10);
 
@@ -63,25 +60,11 @@ const io = new Server(server, {
 });
 
 io.on("connection", async (socket: Socket) => {
-  const { userId, roomCode, userName } = socket.handshake.query;
-
-  socket.data = {
-    userId,
-    userName,
-    roomCode,
-    state: {},
-  };
-
-  const room = await Room.find(socket.data.roomCode);
-  if (!room) return disconnect(socket, "This room does not exist.");
-
-  const roomService = new RoomService({ room, server: io });
-
-  socket.join(room.code);
-
-  socket.data.userId === room.hostId
-    ? registerHost({ socket, roomService })
-    : registerMember({ socket, roomService });
+  try {
+    await joinRoom({ socket, server: io });
+  } catch (e) {
+    console.error("Failed to join room.", e);
+  }
 });
 
 server.listen(port);

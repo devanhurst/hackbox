@@ -1,16 +1,13 @@
-import * as RoomRepository from "../db/Room";
-import * as MemberRepository from "../db/Member";
+import RoomRepository, { SavedRoom } from "../db/RoomRepository";
+import MemberRepository from "../db/MemberRepository";
 import { Member } from "./Member";
-import { SavedRoom } from "../db/db";
 
 interface CreateProps {
   hostId: string;
   twitchRequired: boolean;
 }
 
-interface ConstructorProps {
-  hostId: string;
-  twitchRequired: boolean;
+interface ConstructorProps extends CreateProps {
   code: string;
   closed: boolean;
 }

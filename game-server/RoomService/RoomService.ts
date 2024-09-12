@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
-import { Room } from "../models";
+import { Room, Member } from "../models";
 import { randomUUID } from "crypto";
-import { MemberState } from "../types";
+import { updateMemberState } from "../helpers";
 
 interface ConstructorProps {
   room: Room;
@@ -17,17 +17,22 @@ export class RoomService {
     this.room = props.room;
   }
 
-  async getRoomSockets() {
+  async getAllSockets() {
     return this.server.in(this.room.code).fetchSockets();
   }
 
   async getHostSocket() {
-    const sockets = await this.getRoomSockets();
-    return sockets.find((s) => s.data.userId === this.room.hostId);
+    const sockets = await this.getAllSockets();
+    return sockets.find((s) => s.data.type === "host");
   }
 
-  async getMemberSocket(userId: string) {
-    const sockets = await this.getRoomSockets();
+  async getMemberSockets() {
+    const sockets = await this.getAllSockets();
+    return sockets.filter((s) => s.data.type === "member");
+  }
+
+  async getSocket(userId: string) {
+    const sockets = await this.getMemberSockets();
     return sockets.find((s) => s.data.userId === userId);
   }
 
@@ -57,6 +62,8 @@ export class RoomService {
     if (!hostSocket) return;
 
     const members = await this.room.getMembers();
+    const sockets = await this.getMemberSockets();
+
     const state = {
       members: members.reduce((acc: { [memberId: string]: object }, member) => {
         const metadata = (member.metadata || {}) as any;
@@ -66,6 +73,7 @@ export class RoomService {
           name: member.userName,
           metadata,
           twitchData: metadata.twitch,
+          online: !!sockets.find((s) => s.data.userId === member.userId),
         };
 
         return acc;
@@ -80,7 +88,7 @@ export class RoomService {
     newState,
   }: {
     recipients: string[];
-    newState: Partial<MemberState>;
+    newState: Partial<Member["state"]>;
   }): Promise<void> {
     const members = await this.room.getMembers();
     const membersToUpdate = members.filter((m) =>
@@ -88,50 +96,14 @@ export class RoomService {
     );
 
     membersToUpdate.forEach(async (member) => {
-      const oldState = member.state as MemberState;
-      const combinedState = { ...oldState, id: randomUUID() };
-
-      if (newState.version) {
-        combinedState.version = newState.version;
-      }
-      if (newState.theme) {
-        if (newState.theme.header)
-          combinedState.theme.header = {
-            ...oldState.theme.header,
-            ...newState.theme.header,
-          };
-        if (newState.theme.main)
-          combinedState.theme.main = {
-            ...oldState.theme.main,
-            ...newState.theme.main,
-          };
-        if (newState.theme.fonts) {
-          combinedState.theme.fonts = newState.theme.fonts;
-        }
-      }
-
-      if (newState.presets) {
-        const oldPresets = oldState.presets || {};
-        combinedState.presets = { ...oldPresets, ...newState.presets };
-      }
-
-      if (newState.ui) {
-        if (newState.ui.header)
-          combinedState.ui.header = {
-            ...oldState.ui.header,
-            ...newState.ui.header,
-          };
-        if (newState.ui.main)
-          combinedState.ui.main = { ...oldState.ui.main, ...newState.ui.main };
-      }
-
-      combinedState.ui.main.components = combinedState.ui.main.components.map(
-        (component) => ({ key: randomUUID(), ...component })
-      );
+      const combinedState = updateMemberState({
+        oldState: member.state,
+        newState,
+      });
 
       member.save({ state: combinedState });
 
-      const memberSocket = await this.getMemberSocket(member.userId);
+      const memberSocket = await this.getSocket(member.userId);
       if (!memberSocket) return;
 
       memberSocket.data.state = combinedState;

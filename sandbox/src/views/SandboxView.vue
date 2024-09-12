@@ -51,7 +51,6 @@ const latestMessages = computed(() =>
     <tr>
       <th>Send Message</th>
       <th>Name</th>
-      <th>User ID</th>
       <th>Last response</th>
       <th>Received at</th>
     </tr>
@@ -59,8 +58,7 @@ const latestMessages = computed(() =>
       <td>
         <button @click="() => updateMemberState(member.id)">Update</button>
       </td>
-      <td>{{ member.name }}</td>
-      <td>{{ member.id }}</td>
+      <td>{{ member.online ? "✅" : "⛔️" }} {{ member.name }}</td>
       <td>
         {{ latestMessages[member.id]?.message.value }}
       </td>

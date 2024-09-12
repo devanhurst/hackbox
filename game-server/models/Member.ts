@@ -1,26 +1,54 @@
-import { SavedMember } from "../db/db";
-import * as MemberRepository from "../db/Member";
-import { MemberState, MemberMetadata } from "../types";
+import MemberRepository, { SavedMember } from "../db/MemberRepository";
+import { TwitchMetadata } from "../lib/twitch";
 
-interface ConstructorProps {
+interface Component {
+  type: string;
+  props: { [key: string]: unknown };
+}
+
+interface CustomFont {
+  family: string;
+}
+
+interface MemberState {
   id: string;
-  userId: string;
-  userName: string;
-  roomCode: string;
-  metadata: MemberMetadata;
-  state: MemberState;
+  version: number;
+  theme: {
+    header: {
+      color: string;
+      background: string;
+    };
+    main: {
+      background: string;
+    };
+    fonts?: CustomFont[];
+  };
+  ui: {
+    header: {
+      text: string;
+    };
+    main: {
+      align: "start" | "center" | "end";
+      components: Component[];
+    };
+  };
+  presets?: { [key: string]: Component };
+}
+
+interface MemberMetadata {
+  twitch?: TwitchMetadata;
 }
 
 interface CreateProps {
   roomCode: string;
   userId: string;
   userName: string;
+  metadata: MemberMetadata;
+  state: MemberState;
 }
 
-interface UpdateProps {
-  userName?: string;
-  metadata?: MemberMetadata;
-  state?: MemberState;
+interface ConstructorProps extends CreateProps {
+  id: string;
 }
 
 export class Member {
@@ -71,7 +99,7 @@ export class Member {
     this.state = props.state;
   }
 
-  async save(props: UpdateProps): Promise<void> {
+  async save(props: Partial<CreateProps>): Promise<void> {
     await MemberRepository.update(this.id, props);
   }
 }

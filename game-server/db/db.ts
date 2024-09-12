@@ -30,11 +30,16 @@ export const members = pgTable("members", {
   metadata: json("metadata"),
 });
 
-export type SavedRoom = typeof rooms.$inferSelect;
-export type InsertRoomInput = typeof rooms.$inferInsert;
-export type SavedMember = typeof members.$inferSelect;
-export type InsertMemberInput = typeof members.$inferInsert;
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id"),
+  userName: text("user_name"),
+  roomCode: text("room_code"),
+  payload: json("payload"),
+  receivedAt: timestamp("received_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 export default drizzle(postgres(process.env.DATABASE_URL as string), {
-  schema: { rooms, members },
+  schema: { rooms, members, messages },
 });
