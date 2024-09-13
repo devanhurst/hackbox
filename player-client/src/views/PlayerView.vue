@@ -3,6 +3,7 @@ import { provide } from "vue";
 import initializePlayerSocket from "@/lib/sockets/playerSocket";
 import router from "@/router";
 import type { PlayerState } from "@/types";
+import { onBeforeRouteLeave } from 'vue-router'
 
 const props = defineProps({
   windowHeight: String,
@@ -40,6 +41,10 @@ const defaultState: PlayerState = {
 const { socket, state } = initializePlayerSocket(router, defaultState);
 provide("socket", socket);
 document.addEventListener('contextmenu', event => event.preventDefault());
+
+onBeforeRouteLeave(() => {
+  socket.disconnect();
+});
 </script>
 
 <template>
