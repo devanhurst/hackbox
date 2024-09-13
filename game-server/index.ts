@@ -5,7 +5,7 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
-import { Room } from "./models";
+import { Room, Member } from "./models";
 import { joinRoom } from "./RoomService";
 
 const port: number = parseInt(process.env.PORT, 10);
@@ -22,9 +22,15 @@ interface RoomCreationResponse {
 
 app.get("/rooms/:roomCode", async (req, res) => {
   const roomCode = req.params.roomCode as string;
+  const userId = req.query.userId as string;
+
   const room = await Room.find(roomCode);
 
   if (!room) return { exists: false };
+  if (room.closed) {
+    const existingMember = await Member.find({ roomCode, userId });
+    if (!existingMember) return { exists: false };
+  }
 
   res.json({ exists: true, twitchRequired: room.twitchRequired });
 });

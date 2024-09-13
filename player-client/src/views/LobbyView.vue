@@ -3,6 +3,7 @@ import { reactive, computed, onMounted, ref } from "vue";
 import { useRoute } from 'vue-router'
 
 import {
+  getUserId,
   getRoomCode,
   getUserName,
   setRoomCode,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/browserStorage";
 import router from "@/router";
 import config from "@/config";
-import getRoom from "@/lib/getRoom";
+import { getRoom } from "@/lib/getRoom";
 import type { FindRoomResponse } from "@/types";
 
 interface TwitchData {
@@ -68,7 +69,7 @@ onMounted(() => {
 });
 
 const updateRoom = async () => {
-  state.room = await getRoom(state.roomCode as string);
+  state.room = await getRoom({ roomCode: state.roomCode as string, userId: getUserId() });
 };
 
 const setRoomCodeFromInput = (event: Event) => {
@@ -319,4 +320,3 @@ button:hover:not(:disabled) {
   text-decoration: none;
 }
 </style>
-@/lib/getRoom
