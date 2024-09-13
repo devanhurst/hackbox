@@ -19,4 +19,8 @@ export const initializeHostSocket = async ({
       newState: payload.data,
     })
   );
+
+  socket.on("reload", () => {
+    roomService.sendToMembers({ event: "reload" });
+  });
 };

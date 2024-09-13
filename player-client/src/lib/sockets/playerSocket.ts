@@ -34,6 +34,10 @@ const attachPlayerEvents = (
     alert(payload.message);
   });
 
+  socket.on("reload", () => {
+    location.reload();
+  });
+
   socket.on("state.member", (payload: PlayerStatePayload) => {
     const newState = expandStatePresets(payload);
     processFonts(payload);

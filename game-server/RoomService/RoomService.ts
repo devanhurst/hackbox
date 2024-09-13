@@ -57,6 +57,13 @@ export class RoomService {
     });
   }
 
+  async sendToMembers({ event, payload }: { event: string; payload?: any }) {
+    const members = await this.getMemberSockets();
+    members.forEach((member) => {
+      member.emit(event, payload);
+    });
+  }
+
   async updateHost() {
     const hostSocket = await this.getHostSocket();
     if (!hostSocket) return;

@@ -45,6 +45,8 @@ const latestMessages = computed(() =>
 <template>
   <h1>Sandbox {{ router.currentRoute.value.params.roomCode }}</h1>
 
+  <button @click="() => socket?.emit('reload')">Reload all devices</button>
+
   <h3>Members</h3>
   <p v-if="!Object.keys(state.members).length">None</p>
   <table v-else>
