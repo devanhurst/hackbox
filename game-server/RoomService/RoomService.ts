@@ -62,7 +62,6 @@ export class RoomService {
     if (!hostSocket) return;
 
     const members = await this.room.getMembers();
-    const sockets = await this.getMemberSockets();
 
     const state = {
       members: members.reduce((acc: { [memberId: string]: object }, member) => {
@@ -71,9 +70,9 @@ export class RoomService {
         acc[member.userId] = {
           id: member.userId,
           name: member.userName,
+          online: member.online,
           metadata,
           twitchData: metadata.twitch,
-          online: !!sockets.find((s) => s.data.userId === member.userId),
         };
 
         return acc;

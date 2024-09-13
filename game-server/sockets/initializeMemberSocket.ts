@@ -73,6 +73,13 @@ export const initializeMemberSocket = async ({
   });
 
   socket.on("disconnect", async () => {
+    const member = await Member.find({
+      userId: socket.data.userId,
+      roomCode: roomService.room.code,
+    });
+
+    if (member) await member.save({ online: false });
+
     roomService.updateHost();
   });
 };

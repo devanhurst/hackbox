@@ -27,6 +27,7 @@ export const members = pgTable("members", {
   userName: text("user_name").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   state: json("state"),
+  online: boolean("online").default(false).notNull(),
   metadata: json("metadata"),
 });
 
@@ -36,7 +37,6 @@ export const messages = pgTable("messages", {
   userName: text("user_name"),
   roomCode: text("room_code"),
   payload: json("payload"),
-  receivedAt: timestamp("received_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

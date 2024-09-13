@@ -1,4 +1,7 @@
-import MemberRepository, { SavedMember } from "../db/MemberRepository";
+import MemberRepository, {
+  SavedMember,
+  SavedMemberInput,
+} from "../db/MemberRepository";
 import { TwitchMetadata } from "../lib/twitch";
 
 interface Component {
@@ -44,6 +47,7 @@ interface CreateProps {
   userId: string;
   userName: string;
   metadata: MemberMetadata;
+  online: boolean;
   state: MemberState;
 }
 
@@ -56,6 +60,7 @@ export class Member {
   userId: string;
   userName: string;
   roomCode: string;
+  online: boolean;
   metadata: MemberMetadata;
   state: MemberState;
 
@@ -65,6 +70,7 @@ export class Member {
       userId: result.userId,
       roomCode: result.roomCode,
       userName: result.userName,
+      online: result.online,
       metadata: result.metadata as MemberMetadata,
       state: result.state as MemberState,
     });
@@ -95,11 +101,12 @@ export class Member {
     this.userId = props.userId;
     this.roomCode = props.roomCode;
     this.userName = props.userName;
+    this.online = props.online;
     this.metadata = props.metadata;
     this.state = props.state;
   }
 
-  async save(props: Partial<CreateProps>): Promise<void> {
+  async save(props: Partial<SavedMemberInput>): Promise<void> {
     await MemberRepository.update(this.id, props);
   }
 }

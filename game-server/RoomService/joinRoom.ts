@@ -37,6 +37,10 @@ const joinAsMember = async ({
     roomCode: room.code,
   });
 
+  if (existingMember) {
+    await existingMember.save({ online: true, metadata: socket.data.metadata });
+  }
+
   if (room.closed && !existingMember) {
     disconnect(socket, "This room is closed.");
   }
@@ -47,16 +51,13 @@ const joinAsMember = async ({
 
   socket.join(room.code);
 
-  if (existingMember) {
-    existingMember.save({ metadata: socket.data.metadata });
-  }
-
   const member =
     existingMember ||
     (await Member.create({
       roomCode: room.code,
       userId: socket.data.userId,
       userName: socket.data.userName,
+      online: true,
       metadata: socket.data.metadata,
       state: defaultMemberState(socket.data.userName),
     }));
