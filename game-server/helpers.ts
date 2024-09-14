@@ -5,7 +5,7 @@ import { Member } from "./models";
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
   socket.disconnect(true);
-  throw new Error(message);
+  console.log(`Disconnected.`, message);
 };
 
 export const defaultMemberState = (userName: string) => ({

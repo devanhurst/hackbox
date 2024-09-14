@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { Room, Member } from "../models";
 import { randomUUID } from "crypto";
-import { updateMemberState } from "../helpers";
+import { disconnect, updateMemberState } from "../helpers";
 
 interface ConstructorProps {
   room: Room;
@@ -36,6 +36,21 @@ export class RoomService {
     return sockets.find((s) => s.data.userId === userId);
   }
 
+  async joinRoom(socket: Socket) {
+    (await this.getAllSockets())
+      .filter((s) => s.data.userId === socket.data.userId)
+      .forEach((s) =>
+        disconnect(
+          s as unknown as Socket,
+          "You have connected from another device."
+        )
+      );
+
+    socket.join(this.room.code);
+
+    this.updateHostState();
+  }
+
   async sendToHost({
     event,
     payload,
@@ -64,11 +79,12 @@ export class RoomService {
     });
   }
 
-  async updateHost() {
+  async updateHostState() {
     const hostSocket = await this.getHostSocket();
     if (!hostSocket) return;
 
     const members = await this.room.getMembers();
+    const memberSockets = await this.getMemberSockets();
 
     const state = {
       members: members.reduce((acc: { [memberId: string]: object }, member) => {
@@ -77,7 +93,7 @@ export class RoomService {
         acc[member.userId] = {
           id: member.userId,
           name: member.userName,
-          online: member.online,
+          online: !!memberSockets.find((s) => s.data.userId === member.userId),
           metadata,
           twitchData: metadata.twitch,
         };
@@ -89,7 +105,7 @@ export class RoomService {
     hostSocket.emit("state.host", state);
   }
 
-  async updateMembers({
+  async updateMemberStates({
     recipients,
     newState,
   }: {

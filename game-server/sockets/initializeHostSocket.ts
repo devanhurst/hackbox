@@ -14,7 +14,7 @@ export const initializeHostSocket = async ({
   socket.data.userId = socket.handshake.query.userId;
 
   socket.on("member.update", async (payload: any) =>
-    roomService.updateMembers({
+    roomService.updateMemberStates({
       recipients: payload.to,
       newState: payload.data,
     })

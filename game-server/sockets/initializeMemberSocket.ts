@@ -63,7 +63,7 @@ export const initializeMemberSocket = async ({
       if (!socket.data.state.id) return;
       if (id === socket.data.state.id) return;
 
-      roomService.updateMembers({
+      roomService.updateMemberStates({
         recipients: [socket.data.userId],
         newState: socket.data.state as Member["state"],
       });
@@ -80,6 +80,6 @@ export const initializeMemberSocket = async ({
 
     if (member) await member.save({ online: false });
 
-    roomService.updateHost();
+    roomService.updateHostState();
   });
 };

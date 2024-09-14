@@ -6,55 +6,50 @@ import { initializeHostSocket, initializeMemberSocket } from "../sockets";
 
 const joinAsHost = async ({
   socket,
-  server,
-  room,
+  roomService,
 }: {
   socket: Socket;
-  server: Server;
-  room: Room;
+  roomService: RoomService;
 }) => {
-  const roomService = new RoomService({ room, server });
   await initializeHostSocket({ socket, roomService });
 
-  socket.join(room.code);
-  roomService.updateHost();
+  roomService.joinRoom(socket);
+  roomService.updateHostState();
 };
 
 const joinAsMember = async ({
   socket,
-  server,
-  room,
+  roomService,
 }: {
   socket: Socket;
-  server: Server;
-  room: Room;
+  roomService: RoomService;
 }) => {
-  const roomService = new RoomService({ room, server });
   await initializeMemberSocket({ socket, roomService });
 
   const existingMember = await Member.find({
     userId: socket.data.userId,
-    roomCode: room.code,
+    roomCode: roomService.room.code,
   });
 
   if (existingMember) {
     await existingMember.save({ online: true, metadata: socket.data.metadata });
   }
 
-  if (room.closed && !existingMember) {
-    disconnect(socket, "This room is closed.");
+  if (roomService.room.closed && !existingMember) {
+    return disconnect(socket, "This room is closed.");
   }
 
-  if (room.twitchRequired && !socket.data.metadata.twitch) {
-    disconnect(socket, "Please log in with Twitch before joining this room.");
+  if (roomService.room.twitchRequired && !socket.data.metadata.twitch) {
+    return disconnect(
+      socket,
+      "Please log in with Twitch before joining this room."
+    );
   }
-
-  socket.join(room.code);
 
   const member =
     existingMember ||
     (await Member.create({
-      roomCode: room.code,
+      roomCode: roomService.room.code,
       userId: socket.data.userId,
       userName: socket.data.userName,
       online: true,
@@ -62,8 +57,8 @@ const joinAsMember = async ({
       state: defaultMemberState(socket.data.userName),
     }));
 
-  roomService.updateHost();
-  roomService.updateMembers({
+  roomService.joinRoom(socket);
+  roomService.updateMemberStates({
     recipients: [socket.data.userId],
     newState: member.state,
   });
@@ -81,7 +76,9 @@ export const joinRoom = async ({
   const room = await Room.find(roomCode as string);
   if (!room) return disconnect(socket, "This room does not exist.");
 
+  const roomService = new RoomService({ room, server });
+
   return userId === room.hostId
-    ? joinAsHost({ socket, server, room })
-    : joinAsMember({ socket, server, room });
+    ? joinAsHost({ socket, roomService })
+    : joinAsMember({ socket, roomService });
 };
