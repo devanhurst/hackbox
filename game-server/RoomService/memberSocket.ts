@@ -1,8 +1,9 @@
 import { Socket } from "socket.io";
 import { Member } from "../models";
 import { authenticateWithTwitch } from "../lib/twitch";
-import { RoomService } from "../RoomService/RoomService";
+import { RoomService } from "./RoomService";
 import MessageRepository from "../db/MessageRepository";
+import { randomUUID } from "crypto";
 
 interface RegisterMemberInput {
   socket: Socket;
@@ -20,10 +21,7 @@ interface HandshakeMetadata {
   twitchAccessToken?: string;
 }
 
-export const initializeMemberSocket = async ({
-  socket,
-  roomService,
-}: RegisterMemberInput) => {
+export default async ({ socket, roomService }: RegisterMemberInput) => {
   const handshake = socket.handshake.query as unknown as Handshake;
   const handshakeMetadata =
     (JSON.parse(handshake.metadata) as HandshakeMetadata) || {};
@@ -40,7 +38,16 @@ export const initializeMemberSocket = async ({
   };
 
   socket.on("msg", async (payload: any) => {
-    roomService.sendToHost({ event: "msg", payload, from: socket });
+    roomService.sendToHost({
+      event: "msg",
+      payload: {
+        from: socket.data.userId,
+        event: payload.event,
+        message: payload,
+        timestamp: Date.now(),
+      },
+    });
+
     MessageRepository.create({
       userId: socket.data.userId,
       userName: socket.data.userName,
@@ -52,8 +59,12 @@ export const initializeMemberSocket = async ({
   socket.on("change", async (payload: any) => {
     roomService.sendToHost({
       event: "change",
-      payload,
-      from: socket,
+      payload: {
+        from: socket.data.userId,
+        event: payload.event,
+        message: payload,
+        timestamp: Date.now(),
+      },
     });
   });
 

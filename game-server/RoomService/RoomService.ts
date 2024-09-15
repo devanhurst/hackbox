@@ -1,7 +1,8 @@
 import { Server, Socket } from "socket.io";
 import { Room, Member } from "../models";
-import { randomUUID } from "crypto";
-import { disconnect, updateMemberState } from "../helpers";
+import { defaultMemberState, disconnect, updateMemberState } from "../helpers";
+import initializeHostSocket from "./hostSocket";
+import initializeMemberSocket from "./memberSocket";
 
 interface ConstructorProps {
   room: Room;
@@ -12,32 +13,80 @@ export class RoomService {
   server: Server;
   room: Room;
 
+  static async join(socket: Socket, server: Server) {
+    try {
+      const { roomCode } = socket.handshake.query;
+
+      const room = await Room.find(roomCode as string);
+      if (!room) return disconnect(socket, "This room does not exist.");
+
+      const roomService = new RoomService({ room, server });
+      await roomService.joinRoom(socket);
+    } catch (e) {
+      console.error("Failed to join room.", e);
+    }
+  }
+
   constructor(props: ConstructorProps) {
     this.server = props.server;
     this.room = props.room;
   }
 
-  async getAllSockets() {
-    return this.server.in(this.room.code).fetchSockets();
-  }
-
-  async getHostSocket() {
-    const sockets = await this.getAllSockets();
-    return sockets.find((s) => s.data.type === "host");
-  }
-
-  async getMemberSockets() {
-    const sockets = await this.getAllSockets();
-    return sockets.filter((s) => s.data.type === "member");
-  }
-
-  async getSocket(userId: string) {
-    const sockets = await this.getMemberSockets();
-    return sockets.find((s) => s.data.userId === userId);
-  }
-
   async joinRoom(socket: Socket) {
-    (await this.getAllSockets())
+    const { userId } = socket.handshake.query;
+
+    if (userId === this.room.hostId) {
+      await this.joinAsHost(socket);
+    } else {
+      await this.joinAsMember(socket);
+    }
+
+    socket.join(this.room.code);
+    this.updateHostState();
+  }
+
+  async joinAsHost(socket: Socket) {
+    await initializeHostSocket({ socket, roomService: this });
+  }
+
+  async joinAsMember(socket: Socket) {
+    await initializeMemberSocket({ socket, roomService: this });
+
+    const existingMember = await Member.find({
+      userId: socket.data.userId,
+      roomCode: this.room.code,
+    });
+
+    if (existingMember) {
+      await existingMember.save({
+        online: true,
+        metadata: socket.data.metadata,
+      });
+    }
+
+    if (this.room.closed && !existingMember) {
+      return disconnect(socket, "This room is closed.");
+    }
+
+    if (this.room.twitchRequired && !socket.data.metadata.twitch) {
+      return disconnect(
+        socket,
+        "Please log in with Twitch before joining this room."
+      );
+    }
+
+    const member =
+      existingMember ||
+      (await Member.create({
+        roomCode: this.room.code,
+        userId: socket.data.userId,
+        userName: socket.data.userName,
+        online: true,
+        metadata: socket.data.metadata,
+        state: defaultMemberState(socket.data.userName),
+      }));
+
+    (await this.getMemberSockets())
       .filter((s) => s.data.userId === socket.data.userId)
       .forEach((s) =>
         disconnect(
@@ -46,43 +95,33 @@ export class RoomService {
         )
       );
 
-    socket.join(this.room.code);
-
-    this.updateHostState();
+    this.updateMemberStates({
+      recipients: [socket.data.userId],
+      newState: member.state,
+    });
   }
 
-  async sendToHost({
-    event,
-    payload,
-    from,
-  }: {
-    event: string;
-    payload: any;
-    from: Socket;
-  }) {
-    const host = await this.getHostSocket();
-    if (!host) return;
+  async getHostSockets() {
+    const sockets = await this.server.in(this.room.code).fetchSockets();
+    return sockets.filter((s) => s.data.type === "host");
+  }
 
-    host.emit(event, {
-      id: randomUUID(),
-      from: from.data.userId,
-      timestamp: Date.now(),
-      event: payload.event,
-      message: payload,
-    });
+  async getMemberSockets() {
+    const sockets = await this.server.in(this.room.code).fetchSockets();
+    return sockets.filter((s) => s.data.type === "member");
+  }
+
+  async sendToHost({ event, payload }: { event: string; payload?: any }) {
+    const hosts = await this.getHostSockets();
+    hosts.forEach((host) => host.emit(event, payload));
   }
 
   async sendToMembers({ event, payload }: { event: string; payload?: any }) {
     const members = await this.getMemberSockets();
-    members.forEach((member) => {
-      member.emit(event, payload);
-    });
+    members.forEach((member) => member.emit(event, payload));
   }
 
   async updateHostState() {
-    const hostSocket = await this.getHostSocket();
-    if (!hostSocket) return;
-
     const members = await this.room.getMembers();
     const memberSockets = await this.getMemberSockets();
 
@@ -102,7 +141,8 @@ export class RoomService {
       }, {}),
     };
 
-    hostSocket.emit("state.host", state);
+    const hostSockets = await this.getHostSockets();
+    hostSockets.forEach((host) => host.emit("state.host", state));
   }
 
   async updateMemberStates({
@@ -113,6 +153,7 @@ export class RoomService {
     newState: Partial<Member["state"]>;
   }): Promise<void> {
     const members = await this.room.getMembers();
+    const memberSockets = await this.getMemberSockets();
     const membersToUpdate = members.filter((m) =>
       recipients.includes(m.userId)
     );
@@ -125,7 +166,9 @@ export class RoomService {
 
       member.save({ state: combinedState });
 
-      const memberSocket = await this.getSocket(member.userId);
+      const memberSocket = memberSockets.find(
+        (s) => s.data.userId === member.userId
+      );
       if (!memberSocket) return;
 
       memberSocket.data.state = combinedState;
