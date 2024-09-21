@@ -2,8 +2,6 @@ import { Socket } from "socket.io";
 import { Member } from "../models";
 import { authenticateWithTwitch } from "../lib/twitch";
 import { RoomService } from "./RoomService";
-import MessageRepository from "../db/MessageRepository";
-import { randomUUID } from "crypto";
 
 interface RegisterMemberInput {
   socket: Socket;
@@ -48,7 +46,7 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
       },
     });
 
-    MessageRepository.create({
+    console.log("Message received:", {
       userId: socket.data.userId,
       userName: socket.data.userName,
       roomCode: roomService.room.code,
@@ -66,21 +64,6 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
         timestamp: Date.now(),
       },
     });
-  });
-
-  socket.on("sync", async (payload: any) => {
-    try {
-      const { id } = payload;
-      if (!socket.data.state.id) return;
-      if (id === socket.data.state.id) return;
-
-      roomService.updateMemberStates({
-        recipients: [socket.data.userId],
-        newState: socket.data.state as Member["state"],
-      });
-    } catch {
-      console.error("Error syncing member state.", payload);
-    }
   });
 
   socket.on("disconnect", async () => {

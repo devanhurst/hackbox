@@ -1,8 +1,6 @@
-import MemberRepository, {
-  SavedMember,
-  SavedMemberInput,
-} from "../db/MemberRepository";
 import { TwitchMetadata } from "../lib/twitch";
+import { db, schema } from "../db";
+import { eq, and, inArray } from "drizzle-orm";
 
 interface Component {
   type: string;
@@ -42,39 +40,13 @@ interface MemberMetadata {
   twitch?: TwitchMetadata;
 }
 
-interface CreateProps {
-  roomCode: string;
-  userId: string;
-  userName: string;
-  metadata: MemberMetadata;
-  online: boolean;
-  state: MemberState;
-}
-
-interface ConstructorProps extends CreateProps {
-  id: string;
-}
-
 export class Member {
   id: string;
   userId: string;
   userName: string;
-  roomCode: string;
   online: boolean;
   metadata: MemberMetadata;
   state: MemberState;
-
-  static fromDatabaseResult(result: SavedMember) {
-    return new Member({
-      id: result.id,
-      userId: result.userId,
-      roomCode: result.roomCode,
-      userName: result.userName,
-      online: result.online,
-      metadata: result.metadata as MemberMetadata,
-      state: result.state as MemberState,
-    });
-  }
 
   static async find({
     userId,
@@ -83,30 +55,70 @@ export class Member {
     userId: string;
     roomCode: string;
   }): Promise<Member | null> {
-    const member = await MemberRepository.findForUserAndRoom({
-      userId,
-      roomCode,
+    const member = await db.query.members.findFirst({
+      where: and(
+        eq(schema.members.userId, userId),
+        eq(schema.members.roomCode, roomCode)
+      ),
     });
 
-    return member ? Member.fromDatabaseResult(member) : null;
+    if (!member) return null;
+    return new Member(member);
   }
 
-  static async create(props: CreateProps): Promise<Member> {
-    const member = await MemberRepository.create(props);
-    return Member.fromDatabaseResult(member);
+  static async findMany(ids: string[]): Promise<Member[]> {
+    const members = await db.query.members.findMany({
+      where: inArray(schema.members.id, ids),
+    });
+
+    return members.map((m) => new Member(m));
   }
 
-  constructor(props: ConstructorProps) {
+  static async create(props: {
+    roomCode: string;
+    userId: string;
+    userName: string;
+    metadata: MemberMetadata;
+    online: boolean;
+    state: MemberState;
+  }): Promise<Member> {
+    const member = (
+      await db
+        .insert(schema.members)
+        .values({
+          ...props,
+          userName: props.userName.toUpperCase(),
+        })
+        .returning()
+    )[0];
+
+    return new Member(member);
+  }
+
+  constructor(props: {
+    id: string;
+    userId: string;
+    userName: string;
+    online: boolean;
+    metadata: unknown;
+    state?: unknown;
+  }) {
     this.id = props.id;
     this.userId = props.userId;
-    this.roomCode = props.roomCode;
     this.userName = props.userName;
     this.online = props.online;
-    this.metadata = props.metadata;
-    this.state = props.state;
+    this.metadata = props.metadata as MemberMetadata;
+    this.state = props.state as MemberState;
   }
 
-  async save(props: Partial<SavedMemberInput>): Promise<void> {
-    await MemberRepository.update(this.id, props);
+  async save(props: {
+    online?: boolean;
+    metadata?: MemberMetadata;
+    state?: MemberState;
+  }): Promise<void> {
+    await db
+      .update(schema.members)
+      .set(props)
+      .where(eq(schema.members.id, this.id));
   }
 }

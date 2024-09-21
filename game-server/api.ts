@@ -1,5 +1,5 @@
 import { Express } from "express";
-import { Room, Member } from "../models";
+import { Room, Member } from "./models";
 
 interface RoomCreationResponse {
   ok: boolean;

@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { Room, Member } from "../models";
-import { defaultMemberState, disconnect, updateMemberState } from "../helpers";
+import { defaultMemberState, disconnect, combineStates } from "../helpers";
 import initializeHostSocket from "./hostSocket";
 import initializeMemberSocket from "./memberSocket";
 
@@ -152,14 +152,12 @@ export class RoomService {
     recipients: string[];
     newState: Partial<Member["state"]>;
   }): Promise<void> {
-    const members = await this.room.getMembers();
+    const memberIds = (await this.room.getMembers(recipients)).map((m) => m.id);
+    const members = await Member.findMany(memberIds);
     const memberSockets = await this.getMemberSockets();
-    const membersToUpdate = members.filter((m) =>
-      recipients.includes(m.userId)
-    );
 
-    membersToUpdate.forEach(async (member) => {
-      const combinedState = updateMemberState({
+    members.forEach(async (member) => {
+      const combinedState = combineStates({
         oldState: member.state,
         newState,
       });
@@ -169,6 +167,7 @@ export class RoomService {
       const memberSocket = memberSockets.find(
         (s) => s.data.userId === member.userId
       );
+
       if (!memberSocket) return;
 
       memberSocket.data.state = combinedState;

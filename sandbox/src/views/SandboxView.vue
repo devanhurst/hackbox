@@ -88,7 +88,7 @@ const latestMessages = computed(() =>
     :autofocus="true"
     :indent-with-tab="true"
     :tab-size="2"
-    :extensions="json()"
+    :extensions="[json()]"
     style="text-align: start"
   />
 </template>

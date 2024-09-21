@@ -42,7 +42,7 @@ export const defaultMemberState = (userName: string) => ({
   },
 });
 
-export const updateMemberState = ({
+export const combineStates = ({
   oldState,
   newState,
 }: {

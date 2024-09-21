@@ -11,7 +11,7 @@ import {
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 
-export const rooms = pgTable("rooms", {
+const rooms = pgTable("rooms", {
   code: text("code").primaryKey(),
   hostId: uuid("host_id").notNull(),
   persistent: boolean("persistent").default(false),
@@ -20,7 +20,7 @@ export const rooms = pgTable("rooms", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const members = pgTable("members", {
+const members = pgTable("members", {
   id: uuid("id").primaryKey().defaultRandom(),
   roomCode: text("room_code").notNull(),
   userId: uuid("user_id").notNull(),
@@ -31,15 +31,7 @@ export const members = pgTable("members", {
   metadata: json("metadata"),
 });
 
-export const messages = pgTable("messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id"),
-  userName: text("user_name"),
-  roomCode: text("room_code"),
-  payload: json("payload"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export default drizzle(postgres(process.env.DATABASE_URL as string), {
-  schema: { rooms, members, messages },
+export const schema = { rooms, members };
+export const db = drizzle(postgres(process.env.DATABASE_URL as string), {
+  schema,
 });

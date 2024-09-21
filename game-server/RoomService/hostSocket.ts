@@ -12,7 +12,7 @@ export default async ({ socket, roomService }: RegisterHostInput) => {
 
   socket.on("member.update", async (payload: any) =>
     roomService.updateMemberStates({
-      recipients: payload.to,
+      recipients: [payload.to].flat(),
       newState: payload.data,
     })
   );
