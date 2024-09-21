@@ -80,6 +80,24 @@ export class Room {
     this.closed = props.closed;
   }
 
+  async getMemberIds(userIds?: string[]) {
+    const where = userIds
+      ? and(
+          eq(schema.members.roomCode, this.code),
+          inArray(schema.members.userId, userIds)
+        )
+      : eq(schema.members.roomCode, this.code);
+
+    const result = await db.query.members.findMany({
+      columns: {
+        id: true,
+      },
+      where,
+    });
+
+    return result.map((r) => r.id);
+  }
+
   async getMembers(userIds?: string[]) {
     const where = userIds
       ? and(

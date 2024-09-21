@@ -5,7 +5,6 @@ import { Member } from "./models";
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
   socket.disconnect(true);
-  console.log(`Disconnected.`, message);
 };
 
 export const defaultMemberState = (userName: string) => ({
@@ -71,8 +70,7 @@ export const combineStates = ({
   }
 
   if (newState.presets) {
-    const oldPresets = oldState.presets || {};
-    combinedState.presets = { ...oldPresets, ...newState.presets };
+    combinedState.presets = newState.presets;
   }
 
   if (newState.ui) {

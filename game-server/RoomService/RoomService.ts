@@ -152,7 +152,7 @@ export class RoomService {
     recipients: string[];
     newState: Partial<Member["state"]>;
   }): Promise<void> {
-    const memberIds = (await this.room.getMembers(recipients)).map((m) => m.id);
+    const memberIds = await this.room.getMemberIds(recipients);
     const members = await Member.findMany(memberIds);
     const memberSockets = await this.getMemberSockets();
 
