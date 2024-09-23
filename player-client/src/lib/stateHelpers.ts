@@ -1,6 +1,6 @@
 import type { PlayerStatePayload } from "@/types";
 
-const expandStatePresets = (state: PlayerStatePayload): PlayerStatePayload => {
+const expandStatePresets = (state: PlayerStatePayload): void => {
   const presets = state.presets || {};
   const components = state.ui.main.components.map((component) => {
     const preset = presets[component.type];
@@ -12,21 +12,23 @@ const expandStatePresets = (state: PlayerStatePayload): PlayerStatePayload => {
   });
 
   state.ui.main.components = components;
-
-  return state;
 };
 
 const processFonts = (state: PlayerStatePayload): void => {
   document.getElementById("google-fonts-preload-link")?.remove();
   document.getElementById("google-fonts-link")?.remove();
 
-  const fonts = state.theme.fonts;
-  if (!fonts || fonts.length === 0) return;
+  const search = JSON.stringify(state);
+  const matches = [...search.matchAll(/"fontFamily":"(.*?)"/g)];
+  const fontSet = new Set(matches.map((capture) => capture[1]));
+  const fonts = [...fontSet];
+
+  if (fonts.length === 0) return;
 
   const searchParams = new URLSearchParams();
 
-  fonts.forEach(({ family }) => {
-    searchParams.append("family", family);
+  fonts.forEach((font) => {
+    searchParams.append("family", font);
   });
   searchParams.append("display", "swap");
 

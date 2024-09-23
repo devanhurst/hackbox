@@ -26,6 +26,8 @@ body {
   box-sizing: border-box;
   font-family: Helvetica, sans-serif;
   overflow: hidden;
+  -ms-user-select: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 </style>

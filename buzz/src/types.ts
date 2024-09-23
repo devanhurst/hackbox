@@ -22,10 +22,6 @@ export interface Component {
   props: { [key: string]: object };
 }
 
-export interface CustomFont {
-  family: string;
-}
-
 export interface ThemeState {
   header: {
     text: string;
@@ -35,7 +31,6 @@ export interface ThemeState {
   main: {
     background: string;
   };
-  fonts?: CustomFont[];
 }
 
 export interface ComponentsState {

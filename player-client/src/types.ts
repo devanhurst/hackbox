@@ -4,25 +4,20 @@ export interface Component {
   props: { [key: string]: unknown };
 }
 
-export interface CustomFont {
-  family: string;
-}
-
 export interface ThemeState {
   header: {
     color: string;
     background: string;
     minHeight: string;
     maxHeight: string;
-    fontFamily: string;
+    fontFamily?: string;
   };
   main: {
     background: string;
-    fontFamily: string;
     minWidth: string;
     maxWidth: string;
+    fontFamily?: string;
   };
-  fonts?: CustomFont[];
 }
 
 export interface UiState {
@@ -36,15 +31,11 @@ export interface UiState {
 }
 
 export interface PlayerState {
-  id: string;
-  version: number;
   theme: ThemeState;
   ui: UiState;
 }
 
 export interface PlayerStatePayload {
-  id: string;
-  version?: number;
   theme: ThemeState;
   ui: UiState;
   presets: { [key: string]: Component };

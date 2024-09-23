@@ -46,12 +46,9 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
       },
     });
 
-    console.log("Message received:", {
-      userId: socket.data.userId,
-      userName: socket.data.userName,
-      roomCode: roomService.room.code,
-      payload: payload,
-    });
+    console.log(
+      `[${roomService.room.code}] ${socket.data.userName}: ${payload.value} (${payload.event})`
+    );
   });
 
   socket.on("change", async (payload: any) => {

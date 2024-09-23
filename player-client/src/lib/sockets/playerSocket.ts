@@ -10,13 +10,35 @@ import {
   getTwitchAccessToken,
 } from "@/lib/browserStorage";
 import { expandStatePresets, processFonts } from "../stateHelpers";
+import mergeWith from "lodash/mergeWith";
 
-const getVersion = (payload: PlayerStatePayload) =>
-  payload.version ? payload.version : 1;
+const baseState: PlayerState = {
+  theme: {
+    header: {
+      color: "black",
+      background: "black",
+      minHeight: "50px",
+      maxHeight: "50px",
+    },
+    main: {
+      background: "black",
+      minWidth: "300px",
+      maxWidth: "350px",
+    },
+  },
+  ui: {
+    header: {
+      text: "",
+    },
+    main: {
+      align: "start",
+      components: [],
+    },
+  },
+};
 
 const attachPlayerEvents = (
   socket: Socket,
-  defaultState: PlayerState,
   state: PlayerState,
   router: Router
 ) => {
@@ -39,26 +61,19 @@ const attachPlayerEvents = (
   });
 
   socket.on("state.member", (payload: PlayerStatePayload) => {
-    const newState = expandStatePresets(payload);
     processFonts(payload);
+    expandStatePresets(payload);
 
-    state.id = newState.id;
-    state.version = getVersion(payload);
-    state.theme = {
-      header: {
-        ...defaultState.theme.header,
-        ...newState.theme.header,
-      },
-      main: {
-        ...defaultState.theme.main,
-        ...newState.theme.main,
-      },
-    };
+    const newState = mergeWith(state, payload, (_, newValue) =>
+      Array.isArray(newValue) ? newValue : undefined
+    );
+
+    state.theme = newState.theme;
     state.ui = newState.ui;
   });
 };
 
-const initializePlayerSocket = (router: Router, defaultState: PlayerState) => {
+const initializePlayerSocket = (router: Router) => {
   const socket = io(config.backendUri, {
     query: {
       userId: getUserId(),
@@ -70,9 +85,9 @@ const initializePlayerSocket = (router: Router, defaultState: PlayerState) => {
     },
   });
 
-  const state = reactive(defaultState);
+  const state = reactive<PlayerState>(baseState);
 
-  attachPlayerEvents(socket, defaultState, state, router);
+  attachPlayerEvents(socket, state, router);
 
   return { socket, state };
 };

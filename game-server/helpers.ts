@@ -1,6 +1,7 @@
 import { Socket } from "socket.io";
 import { randomUUID } from "crypto";
 import { Member } from "./models";
+import mergeWith from "lodash/mergeWith";
 
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
@@ -8,15 +9,14 @@ export const disconnect = (socket: Socket, message = "An error occurred.") => {
 };
 
 export const defaultMemberState = (userName: string) => ({
-  id: randomUUID(),
-  version: 2,
   theme: {
     header: {
-      color: "white",
-      background: "#7c2fec",
+      color: "#EEE",
+      background: "#222",
+      fontFamily: "Fredoka One",
     },
     main: {
-      background: "#120a20",
+      background: "#111",
     },
   },
   ui: {
@@ -29,11 +29,15 @@ export const defaultMemberState = (userName: string) => ({
         {
           type: "Text",
           props: {
-            text: "Waiting for the host to let you in...",
-            align: "center",
-            border: "none",
-            color: "white",
-            background: "transparent",
+            text: "Hang tight!<br /><br />We're waiting for the host to let you in.",
+            style: {
+              align: "center",
+              border: "none",
+              color: "#EEE",
+              background: "transparent",
+              fontSize: "1.5rem",
+              fontFamily: "Fredoka One",
+            },
           },
         },
       ],
@@ -48,43 +52,14 @@ export const combineStates = ({
   oldState: Member["state"];
   newState: Partial<Member["state"]>;
 }) => {
-  const combinedState = { ...oldState, id: randomUUID() };
+  const combinedState = mergeWith(oldState, newState, (_, newValue) =>
+    Array.isArray(newValue) ? newValue : undefined
+  );
 
-  if (newState.version) {
-    combinedState.version = newState.version;
-  }
-  if (newState.theme) {
-    if (newState.theme.header)
-      combinedState.theme.header = {
-        ...oldState.theme.header,
-        ...newState.theme.header,
-      };
-    if (newState.theme.main)
-      combinedState.theme.main = {
-        ...oldState.theme.main,
-        ...newState.theme.main,
-      };
-    if (newState.theme.fonts) {
-      combinedState.theme.fonts = newState.theme.fonts;
-    }
-  }
-
-  if (newState.presets) {
-    combinedState.presets = newState.presets;
-  }
-
-  if (newState.ui) {
-    if (newState.ui.header)
-      combinedState.ui.header = {
-        ...oldState.ui.header,
-        ...newState.ui.header,
-      };
-    if (newState.ui.main)
-      combinedState.ui.main = { ...oldState.ui.main, ...newState.ui.main };
-  }
+  const randomId = randomUUID().substring(0, 3);
 
   combinedState.ui.main.components = combinedState.ui.main.components.map(
-    (component) => ({ key: randomUUID(), ...component })
+    (component, index) => ({ key: `${randomId}-${index}`, ...component })
   );
 
   return combinedState;

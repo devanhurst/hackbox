@@ -1,5 +1,4 @@
 export default `{
-  "version": 2,
   "theme": {
     "header": {
       "color": "black",
@@ -7,15 +6,8 @@ export default `{
       "fontFamily": "monospace"
     },
     "main": {
-      "background": "black"
-    },
-    "fonts": [
-      { "family": "Roboto Condensed" },
-      { "family": "Open Sans" },
-      { "family": "Montserrat" },
-      { "family": "Raleway" },
-      { "family": "Ubuntu" }
-    ]
+      "background": "#111"
+    }
   },
   "presets": {
     "Question": {
@@ -44,12 +36,12 @@ export default `{
           }
         },
         "submit": {
-          "label": "Final Answer?",
+          "label": "Final answer?",
           "style": {
             "align": "center",
+            "fontFamily": "Roboto Condensed",
             "background": "#FAA516",
             "color": "black",
-            "fontFamily": "Comic Sans MS",
             "hover": {
               "background": "#0BDA51",
               "color": "white"
@@ -81,7 +73,6 @@ export default `{
                 "value": "A",
                 "keys": ["A", "1"],
                 "style": {
-                  "background": "#111111",
                   "fontFamily": "Open Sans"
                 }
               },
@@ -90,7 +81,6 @@ export default `{
                 "value": "B",
                 "keys": ["B", "2"],
                 "style": {
-                  "background": "#222222",
                   "fontFamily": "Montserrat"
                 }
               },
@@ -99,7 +89,6 @@ export default `{
                 "value": "C",
                 "keys": ["C", "3"],
                 "style": {
-                  "background": "#333333",
                   "fontFamily": "Raleway"
                 }
               },
@@ -108,7 +97,6 @@ export default `{
                 "value": "D",
                 "keys": ["D", "4"],
                 "style": {
-                  "background": "#444444",
                   "fontFamily": "Ubuntu"
                 }
               }

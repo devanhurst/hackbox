@@ -7,22 +7,15 @@ interface Component {
   props: { [key: string]: unknown };
 }
 
-interface CustomFont {
-  family: string;
-}
-
 interface MemberState {
-  id: string;
-  version: number;
   theme: {
     header: {
-      color: string;
-      background: string;
+      color?: string;
+      background?: string;
     };
     main: {
-      background: string;
+      background?: string;
     };
-    fonts?: CustomFont[];
   };
   ui: {
     header: {
@@ -80,7 +73,7 @@ export class Member {
     userName: string;
     metadata: MemberMetadata;
     online: boolean;
-    state: MemberState;
+    state: Partial<MemberState>;
   }): Promise<Member> {
     const member = (
       await db
