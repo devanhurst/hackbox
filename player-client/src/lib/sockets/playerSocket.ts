@@ -10,30 +10,17 @@ import {
   getTwitchAccessToken,
 } from "@/lib/browserStorage";
 import { expandStatePresets, processFonts } from "../stateHelpers";
-import mergeWith from "lodash/mergeWith";
+import merge from "lodash/merge";
+import cloneDeep from "lodash/cloneDeep";
 
-const baseState: PlayerState = {
+const stateSkeleton = {
   theme: {
-    header: {
-      color: "black",
-      background: "black",
-      minHeight: "50px",
-      maxHeight: "50px",
-    },
-    main: {
-      background: "black",
-      minWidth: "300px",
-      maxWidth: "350px",
-    },
+    header: {},
+    main: {},
   },
   ui: {
-    header: {
-      text: "",
-    },
-    main: {
-      align: "start",
-      components: [],
-    },
+    header: {},
+    main: {},
   },
 };
 
@@ -61,12 +48,10 @@ const attachPlayerEvents = (
   });
 
   socket.on("state.member", (payload: PlayerStatePayload) => {
-    processFonts(payload);
-    expandStatePresets(payload);
+    const newState = merge(cloneDeep(stateSkeleton), payload);
 
-    const newState = mergeWith(state, payload, (_, newValue) =>
-      Array.isArray(newValue) ? newValue : undefined
-    );
+    processFonts(newState);
+    expandStatePresets(newState);
 
     state.theme = newState.theme;
     state.ui = newState.ui;
@@ -85,7 +70,7 @@ const initializePlayerSocket = (router: Router) => {
     },
   });
 
-  const state = reactive<PlayerState>(baseState);
+  const state = reactive<PlayerState>(cloneDeep(stateSkeleton) as PlayerState);
 
   attachPlayerEvents(socket, state, router);
 

@@ -19,7 +19,7 @@ onBeforeRouteLeave(() => {
 
 <template>
   <div class="player-wrapper">
-    <div v-if="state.ui.header"
+    <div
       class="player-nav--wrapper">
       <div class="player-nav">
         {{ state.ui.header.text }}
@@ -43,16 +43,16 @@ onBeforeRouteLeave(() => {
   display: flex;
   flex-direction: column;
   height: v-bind("props.windowHeight");
-  background: v-bind("state.theme.main.background");
+  background: v-bind("state.theme.main.background || 'black'");
 }
 
 .player-nav--wrapper {
   display: flex;
   justify-content: center;
-  min-height: v-bind("state.theme.header.minHeight");
-  max-height: v-bind("state.theme.header.maxHeight");
-  color: v-bind("state.theme.header.color");
-  background: v-bind("state.theme.header.background");
+  min-height: v-bind("state.theme.header.minHeight || '50px'");
+  max-height: v-bind("state.theme.header.maxHeight || '50px'");
+  color: v-bind("state.theme.header.color || 'black'");
+  background: v-bind("state.theme.header.background || 'black'");
   font-family: v-bind("state.theme.header.fontFamily");
 }
 
@@ -60,8 +60,8 @@ onBeforeRouteLeave(() => {
   display: flex;
   justify-content: center;
   width: 100%;
-  min-width: v-bind("state.theme.main.minWidth");
-  max-width: v-bind("state.theme.main.maxWidth");
+  min-width: v-bind("state.theme.main.minWidth || '300px'");
+  max-width: v-bind("state.theme.main.maxWidth || '350px'");
   align-items: center;
   font-size: 28px;
   font-weight: bold;
@@ -72,7 +72,7 @@ onBeforeRouteLeave(() => {
   flex: 1;
   justify-content: center;
   overflow: scroll;
-  align-items: v-bind("state.ui.main.align");
+  align-items: v-bind("state.ui.main.align || 'start'");
   font-family: v-bind("state.theme.main.fontFamily");
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
@@ -87,8 +87,8 @@ onBeforeRouteLeave(() => {
   flex-direction: column;
   max-height: 100%;
   width: 100%;
-  min-width: v-bind("state.theme.main.minWidth");
-  max-width: v-bind("state.theme.main.maxWidth");
+  min-width: v-bind("state.theme.main.minWidth || '300px'");
+  max-width: v-bind("state.theme.main.maxWidth || '350px'");
 }
 
 .player-component {

@@ -1,7 +1,6 @@
 import { Socket } from "socket.io";
 import { randomUUID } from "crypto";
 import { Member } from "./models";
-import mergeWith from "lodash/mergeWith";
 
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
@@ -45,22 +44,17 @@ export const defaultMemberState = (userName: string) => ({
   },
 });
 
-export const combineStates = ({
-  oldState,
-  newState,
-}: {
-  oldState: Member["state"];
-  newState: Partial<Member["state"]>;
-}) => {
-  const combinedState = mergeWith(oldState, newState, (_, newValue) =>
-    Array.isArray(newValue) ? newValue : undefined
-  );
-
+export const sanitizeState = (state: Member["state"]) => {
   const randomId = randomUUID().substring(0, 3);
 
-  combinedState.ui.main.components = combinedState.ui.main.components.map(
-    (component, index) => ({ key: `${randomId}-${index}`, ...component })
-  );
+  state.ui.main.components = state.ui.main.components.map((c, index) => ({
+    key: `${randomId}-${index}`,
+    ...c,
+  }));
 
-  return combinedState;
+  return {
+    ui: state.ui,
+    theme: state.theme,
+    presets: state.presets,
+  };
 };
