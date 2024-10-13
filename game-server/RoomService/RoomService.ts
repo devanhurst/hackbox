@@ -113,7 +113,11 @@ export class RoomService {
 
   async sendToHost({ event, payload }: { event: string; payload?: any }) {
     const hosts = await this.getHostSockets();
-    hosts.forEach((host) => host.emit(event, payload));
+    // hosts.forEach((host) => host.emit(event, payload));
+
+    // Hotfix: Send to the newest host?
+    if (!hosts.length) return;
+    hosts[hosts.length - 1].emit(event, payload);
   }
 
   async sendToMembers({ event, payload }: { event: string; payload?: any }) {
