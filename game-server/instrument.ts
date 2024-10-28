@@ -8,7 +8,7 @@ Sentry.init({
   dsn: "https://a0c7c6d8804afc55ec47eb18acd028f7@o4507848851652608.ingest.us.sentry.io/4507848855388160",
   integrations: [
     nodeProfilingIntegration(),
-    Sentry.captureConsoleIntegration(),
+    Sentry.captureConsoleIntegration({ levels: ["warn", "error"] }),
   ],
   tracesSampleRate:
     parseFloat(process.env.SENTRY_TRACE_SAMPLE_RATE as string) || 0,
