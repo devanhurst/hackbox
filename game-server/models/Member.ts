@@ -12,6 +12,7 @@ interface MemberState {
     header: {
       color?: string;
       background?: string;
+      fontFamily?: string;
     };
     main: {
       background?: string;
@@ -19,10 +20,10 @@ interface MemberState {
   };
   ui: {
     header: {
-      text: string;
+      text?: string;
     };
     main: {
-      align: "start" | "center" | "end";
+      align?: "start" | "center" | "end";
       components: Component[];
     };
   };

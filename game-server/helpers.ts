@@ -8,7 +8,7 @@ export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.disconnect(true);
 };
 
-const emptyMemberState = () => ({
+const emptyMemberState = (): Member["state"] => ({
   theme: {
     header: {
       color: "#EEE",
@@ -56,8 +56,12 @@ export const defaultMemberState = (userName: string) => ({
   },
 });
 
-export const sanitizeState = (state: Member["state"]) => {
-  const newState = deepmerge()(emptyMemberState(), state ?? {});
+export const sanitizeState = (state: Partial<Member["state"]>) => {
+  const newState = deepmerge()(
+    emptyMemberState(),
+    state ?? {},
+  ) as Member["state"];
+
   const randomId = randomUUID().substring(0, 3);
 
   newState.ui.main.components = newState.ui.main.components.map((c, index) => ({

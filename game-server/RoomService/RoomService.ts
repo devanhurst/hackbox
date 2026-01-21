@@ -83,7 +83,7 @@ export class RoomService {
         userName: socket.data.userName,
         online: true,
         metadata: socket.data.metadata,
-        state: defaultMemberState(socket.data.userName),
+        state: sanitizeState(defaultMemberState(socket.data.userName)),
       }));
 
     (await this.getMemberSockets())
