@@ -47,7 +47,8 @@ export const defaultMemberState = (userName: string) => ({
 export const sanitizeState = (state: Member["state"]) => {
   const randomId = randomUUID().substring(0, 3);
 
-  state.ui.main.components = state.ui.main.components.map((c, index) => ({
+  const newComponents = state?.ui?.main?.components ?? [];
+  state.ui.main.components = newComponents.map((c, index) => ({
     key: `${randomId}-${index}`,
     ...c,
   }));

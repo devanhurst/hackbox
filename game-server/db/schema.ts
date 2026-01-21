@@ -1,5 +1,4 @@
-import "dotenv/config";
-
+import { defineRelations } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -8,10 +7,8 @@ import {
   json,
   text,
 } from "drizzle-orm/pg-core";
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
 
-const rooms = pgTable("rooms", {
+export const rooms = pgTable("rooms", {
   code: text("code").primaryKey(),
   hostId: uuid("host_id").notNull(),
   persistent: boolean("persistent").default(false),
@@ -20,7 +17,7 @@ const rooms = pgTable("rooms", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-const members = pgTable("members", {
+export const members = pgTable("members", {
   id: uuid("id").primaryKey().defaultRandom(),
   roomCode: text("room_code").notNull(),
   userId: uuid("user_id").notNull(),
@@ -31,7 +28,12 @@ const members = pgTable("members", {
   metadata: json("metadata"),
 });
 
-export const schema = { rooms, members };
-export const db = drizzle(postgres(process.env.DATABASE_URL as string), {
-  schema,
-});
+export const relations = defineRelations({ rooms, members }, (r) => ({
+  rooms: {
+    host: r.one.members({
+      from: r.rooms.hostId,
+      to: r.members.userId,
+    }),
+  },
+  members: {},
+}));
