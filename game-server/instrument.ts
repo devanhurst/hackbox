@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/node";
 
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
-import { SocketIoInstrumentation } from "@opentelemetry/instrumentation-socket.io";
 
 Sentry.init({
   enabled: process.env.SENTRY_ENABLED === "true",
@@ -15,5 +14,3 @@ Sentry.init({
   profilesSampleRate:
     parseFloat(process.env.SENTRY_PROFILE_SAMPLE_RATE as string) || 0,
 });
-
-Sentry.addOpenTelemetryInstrumentation(new SocketIoInstrumentation());

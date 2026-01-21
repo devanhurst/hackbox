@@ -1,1 +1,1 @@
-# hackbox-backend
+# hackbox-game-server

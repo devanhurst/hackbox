@@ -1,6 +1,6 @@
 import { TwitchMetadata } from "../lib/twitch";
-import { db, schema } from "../db";
-import { eq, and, inArray } from "drizzle-orm";
+import { db, members } from "../db";
+import { eq, inArray } from "drizzle-orm";
 
 interface Component {
   type: string;
@@ -49,10 +49,10 @@ export class Member {
     roomCode: string;
   }): Promise<Member | null> {
     const member = await db.query.members.findFirst({
-      where: and(
-        eq(schema.members.userId, userId),
-        eq(schema.members.roomCode, roomCode)
-      ),
+      where: {
+        userId,
+        roomCode,
+      },
     });
 
     if (!member) return null;
@@ -60,11 +60,12 @@ export class Member {
   }
 
   static async findMany(ids: string[]): Promise<Member[]> {
-    const members = await db.query.members.findMany({
-      where: inArray(schema.members.id, ids),
-    });
+    const result = await db
+      .select()
+      .from(members)
+      .where(inArray(members.id, ids));
 
-    return members.map((m) => new Member(m));
+    return result.map((m) => new Member(m));
   }
 
   static async create(props: {
@@ -77,7 +78,7 @@ export class Member {
   }): Promise<Member> {
     const member = (
       await db
-        .insert(schema.members)
+        .insert(members)
         .values({
           ...props,
           userName: props.userName.toUpperCase(),
@@ -109,9 +110,6 @@ export class Member {
     metadata?: MemberMetadata;
     state?: MemberState;
   }): Promise<void> {
-    await db
-      .update(schema.members)
-      .set(props)
-      .where(eq(schema.members.id, this.id));
+    await db.update(members).set(props).where(eq(members.id, this.id));
   }
 }

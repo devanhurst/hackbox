@@ -1,10 +1,18 @@
-import axios from "axios";
 import { env } from "process";
 
 export interface TwitchMetadata {
   id: string;
   username: string;
   photo: string;
+}
+
+interface UserResponse {
+  id: string;
+  display_name: string;
+  profile_image_url: string;
+}
+interface UsersResponse {
+  data: Array<UserResponse>;
 }
 
 export const authenticateWithTwitch = async (
@@ -15,17 +23,17 @@ export const authenticateWithTwitch = async (
   if (env.MOCK_HTTP) return authenticateWithTwitchMock();
 
   try {
-    const response = await axios({
+    const response = await fetch("https://api.twitch.tv/helix/users", {
       method: "GET",
-      url: "https://api.twitch.tv/helix/users",
       headers: {
         Authorization: "Bearer " + twitchAccessToken,
         "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
       },
     });
 
-    if (response.status === 200) {
-      const userData = response.data.data[0];
+    if (response.ok) {
+      const data = (await response.json()) as UsersResponse;
+      const userData = data.data[0];
 
       return {
         id: userData.id,
