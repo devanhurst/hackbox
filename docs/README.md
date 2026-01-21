@@ -43,7 +43,7 @@ npm run dev
 npm run dev-docs
 ```
 
-The site will be available at `http://localhost:3001/`
+The site will be available at `http://localhost:9002/`
 
 ## Using the Playground
 
@@ -53,8 +53,6 @@ The site will be available at `http://localhost:3001/`
 2. Click "Create Room" to start a game server connection
 3. Edit the payload in the builder/editor
 4. Changes automatically sync to connected devices
-
-**Note**: Requires the game server to be running on `http://localhost:9000`
 
 ```bash
 # Start game server from root

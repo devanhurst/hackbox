@@ -42,6 +42,8 @@
 <script setup lang="ts">
 import { io, Socket } from 'socket.io-client'
 
+const appConfig = useAppConfig();
+
 const props = defineProps<{
   roomCode: string | null
 }>()
@@ -61,7 +63,7 @@ async function createRoom() {
 
   try {
     // Step 1: Create room via REST API
-    const response = await fetch('http://localhost:9000/rooms', {
+    const response = await fetch(`${appConfig.backendUri}/rooms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +85,7 @@ async function createRoom() {
     localRoomCode.value = data.roomCode
 
     // Step 2: Connect to Socket.io as host with roomCode and userId query params
-    socket.value = io('http://localhost:9000', {
+    socket.value = io(appConfig.backendUri as string, {
       query: {
         roomCode: data.roomCode,
         userId: hostId

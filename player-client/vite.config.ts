@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      vue(),
-      vueJsx(),
+      vue({}),
+      vueJsx({}),
       sentryVitePlugin({
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: "hackbox",

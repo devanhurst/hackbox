@@ -19,9 +19,9 @@ npm run dev  # Runs all three services concurrently
 
 ### Individual services
 ```bash
-npm run dev-player    # Start player client (Vite dev server)
-npm run dev-backend   # Start game server on port 9000
-npm run dev-sandbox   # Start sandbox environment (if available)
+npm run dev:player    # Start player client (Vite dev server)
+npm run dev:server    # Start game server on port 9000
+npm run dev:docs      # Start docs and playground
 ```
 
 ### Player Client (player-client/)
@@ -40,13 +40,6 @@ cd game-server
 npm run dev           # Watch mode: compile TS + auto-restart on port 9000
 npm run build         # Compile TypeScript + upload Sentry sourcemaps
 npm start             # Run compiled code from dist/
-```
-
-### Admin Panel (admin/)
-```bash
-cd admin
-npm run dev           # Start Nuxt dev server
-npm run build         # Build for production
 ```
 
 ## Architecture
@@ -109,7 +102,7 @@ The application uses Socket.io for bidirectional communication between players a
 - Dynamically renders components based on `type` field (e.g., "Text", "Button", "Choices")
 - Components located in `src/components/` (ButtonComponent.vue, TextComponent.vue, etc.)
 
-**State Management**: 
+**State Management**:
 - No Vuex/Pinia - uses Vue's reactive() API
 - State structure defined in `src/types.ts` (PlayerState, ThemeState, UiState)
 - State helpers in `src/lib/stateHelpers.ts` for processing server state
@@ -119,17 +112,6 @@ The application uses Socket.io for bidirectional communication between players a
 - `src/lib/browserStorage.ts` - LocalStorage helpers for userId, userName, roomCode, Twitch tokens
 - `src/lib/markdown.ts` - Markdown rendering utilities
 - `src/components/index.ts` - Component exports
-
-### Admin Panel (admin/)
-
-**Framework**: Nuxt 3
-
-**Purpose**: Display statistics and member/room data from the database
-
-**API Routes** (`server/api/`):
-- `members.get.ts` - Fetch members data
-- `rooms.get.ts` - Fetch rooms data  
-- `stats.get.ts` - Fetch statistics
 
 ### Shared Database Schema
 
@@ -171,7 +153,7 @@ npx drizzle-kit push      # Push schema changes
 ### Player Client
 Vite environment variables in `.env` files following Vite conventions (`VITE_` prefix).
 
-### Admin Panel  
+### Admin Panel
 - `DATABASE_URL` - PostgreSQL connection string
 
 ## Node Version
