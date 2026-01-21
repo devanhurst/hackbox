@@ -1,0 +1,28 @@
+{
+  "name": "hackbox-docs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --port 3001",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/content": "^3.11.0",
+    "@nuxt/ui": "^4.3.0",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "better-sqlite3": "^12.6.2",
+    "marked": "^17.0.1",
+    "nuxt": "^4.2.2",
+    "socket.io-client": "^4.8.3",
+    "vue": "^3.5.27"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24.13.0"
+  }
+}

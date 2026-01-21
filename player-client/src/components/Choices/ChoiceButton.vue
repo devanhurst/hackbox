@@ -104,7 +104,7 @@ onUnmounted(() => {
     @click="handleSelect"
     :disabled="state.selected"
     :class="`choice ${state.selected ? 'choice--selected' : ''}`"
-    v-html="label"></button>
+    ><span class="choice-label" v-html="label"></span></button>
 </template>
 
 <style scoped>
@@ -147,5 +147,10 @@ onUnmounted(() => {
 
 .choice--not-selected {
   opacity: 0.6;
+}
+
+.choice-label {
+  word-break: break-word;
+  overflow: hidden;
 }
 </style>

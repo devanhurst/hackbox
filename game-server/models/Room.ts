@@ -1,4 +1,4 @@
-import { db, schema } from "../db";
+import { db, rooms, members } from "../db";
 import { and, eq, inArray } from "drizzle-orm";
 import { Member } from "./Member";
 
@@ -47,9 +47,7 @@ export class Room {
   closed: boolean;
 
   static async find(roomCode: string): Promise<Room | null> {
-    const room = await db.query.rooms.findFirst({
-      where: eq(schema.rooms.code, roomCode.toUpperCase()),
-    });
+    const room = await db.query.rooms.findFirst({ where: { code: roomCode } });
 
     if (!room) return null;
     return new Room({ ...room });
@@ -63,7 +61,7 @@ export class Room {
 
     const newRoom = (
       await db
-        .insert(schema.rooms)
+        .insert(rooms)
         .values({ ...props, code })
         .returning()
     )[0];
@@ -82,40 +80,32 @@ export class Room {
 
   async getMemberIds(userIds?: string[]) {
     const where = userIds
-      ? and(
-          eq(schema.members.roomCode, this.code),
-          inArray(schema.members.userId, userIds)
-        )
-      : eq(schema.members.roomCode, this.code);
+      ? and(eq(members.roomCode, this.code), inArray(members.userId, userIds))
+      : eq(members.roomCode, this.code);
 
-    const result = await db.query.members.findMany({
-      columns: {
-        id: true,
-      },
-      where,
-    });
+    const result = await db
+      .select({ id: members.id })
+      .from(members)
+      .where(where);
 
     return result.map((r) => r.id);
   }
 
   async getMembers(userIds?: string[]) {
     const where = userIds
-      ? and(
-          eq(schema.members.roomCode, this.code),
-          inArray(schema.members.userId, userIds)
-        )
-      : eq(schema.members.roomCode, this.code);
+      ? and(eq(members.roomCode, this.code), inArray(members.userId, userIds))
+      : eq(members.roomCode, this.code);
 
-    const result = await db.query.members.findMany({
-      columns: {
-        id: true,
-        userId: true,
-        userName: true,
-        online: true,
-        metadata: true,
-      },
-      where,
-    });
+    const result = await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        userName: members.userName,
+        online: members.online,
+        metadata: members.metadata,
+      })
+      .from(members)
+      .where(where);
 
     return result.map((r) => new Member(r));
   }

@@ -1,13 +1,14 @@
 import { Socket } from "socket.io";
 import { randomUUID } from "crypto";
 import { Member } from "./models";
+import deepmerge from "@fastify/deepmerge";
 
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
   socket.disconnect(true);
 };
 
-export const defaultMemberState = (userName: string) => ({
+const emptyMemberState = () => ({
   theme: {
     header: {
       color: "#EEE",
@@ -20,10 +21,21 @@ export const defaultMemberState = (userName: string) => ({
   },
   ui: {
     header: {
-      text: userName,
+      text: "",
     },
     main: {
       align: "start" as "start",
+      components: [],
+    },
+  },
+});
+
+export const defaultMemberState = (userName: string) => ({
+  ui: {
+    header: {
+      text: userName,
+    },
+    main: {
       components: [
         {
           type: "Text",
@@ -45,16 +57,13 @@ export const defaultMemberState = (userName: string) => ({
 });
 
 export const sanitizeState = (state: Member["state"]) => {
+  const newState = deepmerge()(emptyMemberState(), state ?? {});
   const randomId = randomUUID().substring(0, 3);
 
-  state.ui.main.components = state.ui.main.components.map((c, index) => ({
+  newState.ui.main.components = newState.ui.main.components.map((c, index) => ({
     key: `${randomId}-${index}`,
     ...c,
   }));
 
-  return {
-    ui: state.ui,
-    theme: state.theme,
-    presets: state.presets,
-  };
+  return newState;
 };

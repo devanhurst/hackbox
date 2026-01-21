@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev-player": "cd player-client && npm run dev",
-    "dev-backend": "cd game-server && npm run dev",
-    "dev-sandbox": "cd sandbox && npm run dev",
-    "dev": "concurrently \"npm run dev-player\" \"npm run dev-backend\" \"npm run dev-sandbox\""
+    "dev:player": "cd player-client && npm run dev",
+    "dev:server": "cd game-server && npm run dev",
+    "dev:docs": "cd docs && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:player\""
   },
   "repository": {
     "type": "git",
