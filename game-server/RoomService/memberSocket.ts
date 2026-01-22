@@ -2,6 +2,7 @@ import type { Socket } from "socket.io";
 import { authenticateWithTwitch } from "../lib/twitch";
 import { Member } from "../models";
 import type { RoomService } from "./RoomService";
+import * as Sentry from "@sentry/node";
 
 interface RegisterMemberInput {
   socket: Socket;
@@ -40,27 +41,27 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
   };
 
   socket.on("msg", async (payload: MemberPayload) => {
-    const hostPayload = {
-      from: socket.data.userId,
-      event: payload.event,
-      message: payload,
-      timestamp: Date.now(),
+    const message = {
+      event: "msg",
+      payload: {
+        from: socket.data.userId,
+        event: payload.event,
+        message: payload,
+        timestamp: Date.now(),
+      },
     };
 
-    await roomService.sendToHost({
-      event: "msg",
-      payload: hostPayload,
-    });
+    await roomService.sendToHost(message);
 
-    console.log(`[${roomService.room.code}] Message sent to host`, {
+    Sentry.logger.info(`[${roomService.room.code}:${socket.data.userName}] Message sent`, {
       roomCode: roomService.room.code,
-      event: "msg",
-      payload: hostPayload,
+      userName: socket.data.userName,
+      message,
     });
   });
 
   socket.on("change", async (payload: MemberPayload) => {
-    await roomService.sendToHost({
+    const message = {
       event: "change",
       payload: {
         from: socket.data.userId,
@@ -68,6 +69,14 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
         message: payload,
         timestamp: Date.now(),
       },
+    };
+
+    await roomService.sendToHost(message);
+
+    Sentry.logger.info(`[${roomService.room.code}:${socket.data.userName}] Input changed`, {
+      roomCode: roomService.room.code,
+      userName: socket.data.userName,
+      message,
     });
   });
 
