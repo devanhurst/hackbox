@@ -7,7 +7,7 @@
     "dev:player": "cd player-client && npm run dev",
     "dev:server": "cd game-server && npm run dev",
     "dev:docs": "cd docs && npm run dev",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:player\""
+    "dev": "concurrently -n \"server,player,docs\" -c \"blue,magenta,green\" \"npm run dev:server\" \"npm run dev:player\" \"npm run dev:docs\""
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/devanhurst/hackbox#readme",
   "devDependencies": {
+    "@biomejs/biome": "2.3.11",
     "concurrently": "^9.2.1"
   }
 }

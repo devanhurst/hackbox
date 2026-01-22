@@ -1,5 +1,5 @@
-import { db, rooms, members } from "../db";
 import { and, eq, inArray } from "drizzle-orm";
+import { db, members, rooms } from "../db";
 import { Member } from "./Member";
 
 interface CreateProps {
@@ -47,7 +47,9 @@ export class Room {
   closed: boolean;
 
   static async find(roomCode: string): Promise<Room | null> {
-    const room = await db.query.rooms.findFirst({ where: { code: roomCode } });
+    const room = await db.query.rooms.findFirst({
+      where: { code: roomCode },
+    });
 
     if (!room) return null;
     return new Room({ ...room });

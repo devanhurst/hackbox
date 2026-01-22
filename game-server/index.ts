@@ -1,10 +1,11 @@
 import "dotenv/config";
 import "./instrument";
+import { createServer } from "node:http";
 import * as Sentry from "@sentry/node";
-import express from "express";
 import cors from "cors";
-import { createServer } from "http";
-import { Socket, Server } from "socket.io";
+import express from "express";
+import type { Socket } from "socket.io";
+import { Server } from "socket.io";
 import registerRoutes from "./api";
 import { RoomService } from "./RoomService";
 

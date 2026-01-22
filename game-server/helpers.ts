@@ -1,7 +1,7 @@
-import { Socket } from "socket.io";
-import { randomUUID } from "crypto";
-import { Member } from "./models";
+import { randomUUID } from "node:crypto";
 import deepmerge from "@fastify/deepmerge";
+import type { Socket } from "socket.io";
+import type { Member } from "./models";
 
 export const disconnect = (socket: Socket, message = "An error occurred.") => {
   socket.emit("error", { message });
@@ -57,10 +57,8 @@ export const defaultMemberState = (userName: string) => ({
 });
 
 export const sanitizeState = (state: Partial<Member["state"]>) => {
-  const newState = deepmerge()(
-    emptyMemberState(),
-    state ?? {},
-  ) as Member["state"];
+  const merge = deepmerge();
+  const newState = merge(emptyMemberState(), state ?? {}) as Member["state"];
 
   const randomId = randomUUID().substring(0, 3);
 

@@ -1,4 +1,4 @@
-import { env } from "process";
+import { env } from "node:process";
 
 export interface TwitchMetadata {
   id: string;
@@ -26,7 +26,7 @@ export const authenticateWithTwitch = async (
     const response = await fetch("https://api.twitch.tv/helix/users", {
       method: "GET",
       headers: {
-        Authorization: "Bearer " + twitchAccessToken,
+        Authorization: `Bearer ${twitchAccessToken}`,
         "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
       },
     });

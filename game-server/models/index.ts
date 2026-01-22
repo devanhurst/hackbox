@@ -1,2 +1,2 @@
-export { Room } from "./Room";
 export { Member } from "./Member";
+export { Room } from "./Room";

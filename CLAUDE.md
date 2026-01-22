@@ -31,7 +31,6 @@ npm run dev           # Start Vite dev server
 npm run build         # Type check + build for production
 npm run type-check    # Run TypeScript compiler check
 npm run test:unit     # Run Vitest unit tests
-npm run lint          # Run ESLint with auto-fix
 ```
 
 ### Game Server (game-server/)

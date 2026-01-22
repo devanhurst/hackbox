@@ -1,5 +1,5 @@
-import { Express } from "express";
-import { Room, Member } from "./models";
+import type { Express } from "express";
+import { Member, Room } from "./models";
 
 interface RoomCreationResponse {
   ok: boolean;
@@ -21,13 +21,6 @@ export default (app: Express) => {
     }
 
     res.json({ exists: true, twitchRequired: room.twitchRequired });
-  });
-
-  app.get("/rooms/:roomCode/auth-host/:userId", async (req, res) => {
-    const { roomCode, userId } = req.params;
-    const room = await Room.find(roomCode);
-    const authed = userId === room?.hostId;
-    res.json({ authed });
   });
 
   app.post("/rooms", async (req, res) => {

@@ -1,13 +1,13 @@
-import { TwitchMetadata } from "../lib/twitch";
-import { db, members } from "../db";
 import { eq, inArray } from "drizzle-orm";
+import { db, members } from "../db";
+import type { TwitchMetadata } from "../lib/twitch";
 
 interface Component {
   type: string;
   props: { [key: string]: unknown };
 }
 
-interface MemberState {
+export interface MemberState {
   theme: {
     header: {
       color?: string;

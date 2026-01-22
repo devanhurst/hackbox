@@ -1,11 +1,11 @@
 import { defineRelations } from "drizzle-orm";
 import {
-  pgTable,
-  uuid,
   boolean,
-  timestamp,
   json,
+  pgTable,
   text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const rooms = pgTable("rooms", {
