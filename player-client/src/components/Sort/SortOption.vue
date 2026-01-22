@@ -59,25 +59,20 @@ const props = {
   ...customProps,
   style: {
     ...defaultProps.style,
-    ...(customProps.style || {}),
+    ...customProps.style,
     hover: {
       ...defaultProps.style.hover,
-      ...(customProps.style?.hover || {}),
+      ...customProps.style?.hover,
     },
   },
 };
 
 const button = ref<HTMLButtonElement>();
 const label = computed(() => markdown(props.label));
-
 </script>
 
 <template>
-  <button
-    ref="button"
-    :disabled="state.submitted"
-    class="sort-option"
-    v-html="label"></button>
+  <button ref="button" :disabled="state.submitted" class="sort-option" v-html="label"></button>
 </template>
 
 <style scoped>
@@ -98,9 +93,7 @@ const label = computed(() => markdown(props.label));
 .sort-option:hover:not(:disabled) {
   cursor: pointer;
   color: v-bind("props.style.hover.color || props.style.hover.color");
-  background: v-bind(
-    "props.style.hover.background || props.style.hover.background"
-  );
+  background: v-bind("props.style.hover.background || props.style.hover.background");
 }
 
 .sort-option:disabled {

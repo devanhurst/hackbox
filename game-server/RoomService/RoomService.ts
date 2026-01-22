@@ -69,10 +69,7 @@ export class RoomService {
     }
 
     if (this.room.twitchRequired && !socket.data.metadata.twitch) {
-      return disconnect(
-        socket,
-        "Please log in with Twitch before joining this room.",
-      );
+      return disconnect(socket, "Please log in with Twitch before joining this room.");
     }
 
     const member =
@@ -91,10 +88,7 @@ export class RoomService {
     sockets
       .filter((s) => s.data.userId === socket.data.userId)
       .forEach((s) => {
-        disconnect(
-          s as unknown as Socket,
-          "You have connected from another device.",
-        );
+        disconnect(s as unknown as Socket, "You have connected from another device.");
       });
 
     this.updateMemberStates({
@@ -121,13 +115,7 @@ export class RoomService {
     newestHost.emit(event, payload);
   }
 
-  async sendToMembers({
-    event,
-    payload,
-  }: {
-    event: string;
-    payload?: unknown;
-  }) {
+  async sendToMembers({ event, payload }: { event: string; payload?: unknown }) {
     const members = await this.getMemberSockets();
     members.forEach((member) => {
       member.emit(event, payload);
@@ -176,9 +164,7 @@ export class RoomService {
 
       member.save({ state });
 
-      const memberSocket = memberSockets.find(
-        (s) => s.data.userId === member.userId,
-      );
+      const memberSocket = memberSockets.find((s) => s.data.userId === member.userId);
 
       if (!memberSocket) return;
 

@@ -27,13 +27,13 @@ const defaultProps = {
 const customProps = defineProps(["custom"]);
 const props = {
   ...defaultProps,
-  ...(customProps.custom || {}),
+  ...customProps.custom,
   style: {
     ...defaultProps.style,
-    ...(customProps.custom?.style || {}),
+    ...customProps.custom?.style,
     hover: {
       ...defaultProps.style.hover,
-      ...(customProps.custom?.style?.hover || {}),
+      ...customProps.custom?.style?.hover,
     },
   },
 };

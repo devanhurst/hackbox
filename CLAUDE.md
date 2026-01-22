@@ -13,11 +13,13 @@ Hackbox is a real-time multiplayer game platform with three main components in a
 ## Development Commands
 
 ### Running the full stack
+
 ```bash
 npm run dev  # Runs all three services concurrently
 ```
 
 ### Individual services
+
 ```bash
 npm run dev:player    # Start player client (Vite dev server)
 npm run dev:server    # Start game server on port 9000
@@ -25,6 +27,7 @@ npm run dev:docs      # Start docs and playground
 ```
 
 ### Player Client (player-client/)
+
 ```bash
 cd player-client
 npm run dev           # Start Vite dev server
@@ -34,6 +37,7 @@ npm run test:unit     # Run Vitest unit tests
 ```
 
 ### Game Server (game-server/)
+
 ```bash
 cd game-server
 npm run dev           # Watch mode: compile TS + auto-restart on port 9000
@@ -56,25 +60,30 @@ The application uses Socket.io for bidirectional communication between players a
 **Entry Point**: `index.ts` - Sets up Express server, Socket.io, and Sentry monitoring
 
 **Core Architecture**: `RoomService/RoomService.ts`
+
 - Central orchestrator for all game room operations
 - Manages bidirectional communication between hosts and players (members)
 - Handles socket connection routing via `RoomService.join()` static method
 - Maintains separate socket handlers for hosts vs members
 
 **Socket Handlers**:
+
 - `RoomService/hostSocket.ts` - Listens for host commands (`member.update`, `reload`)
 - `RoomService/memberSocket.ts` - Listens for player events (`msg`, `change`, `disconnect`)
 
 **Data Models**: `models/`
+
 - `Room.ts` - Game room with 4-letter consonant code (e.g., "BCKD"), host ID, settings
 - `Member.ts` - Player in a room with state (UI configuration), online status, metadata
 
 **Database**: `db.ts`
+
 - Drizzle ORM with PostgreSQL
 - Two tables: `rooms` and `members`
 - Connection string from `DATABASE_URL` environment variable
 
 **Key Concepts**:
+
 - **Member State**: JSON object defining the player's UI (components, theme, layout) - see `helpers.ts:defaultMemberState()`
 - **Room Codes**: 4-character consonant codes generated in `models/Room.ts:generateRoomCode()`
 - **Host Updates**: Host sends state updates to specific players via `member.update` event
@@ -87,26 +96,31 @@ The application uses Socket.io for bidirectional communication between players a
 **Entry Point**: `src/main.ts`
 
 **Routes** (`src/router/index.ts`):
+
 - `/` - Lobby view (enter room code)
 - `/play` - Active player view (renders dynamic UI components)
 - `/twitch-auth-callback` - OAuth redirect handler
 
 **Socket Connection**: `src/lib/sockets/playerSocket.ts`
+
 - Initializes Socket.io client with userId, userName, roomCode from browser storage
 - Receives `state.member` events with UI configuration
 - Reactive state object that drives the UI rendering
 
 **Dynamic Component System**: `src/views/PlayerView.vue`
+
 - Receives component definitions from server in `state.ui.main.components`
 - Dynamically renders components based on `type` field (e.g., "Text", "Button", "Choices")
 - Components located in `src/components/` (ButtonComponent.vue, TextComponent.vue, etc.)
 
 **State Management**:
+
 - No Vuex/Pinia - uses Vue's reactive() API
 - State structure defined in `src/types.ts` (PlayerState, ThemeState, UiState)
 - State helpers in `src/lib/stateHelpers.ts` for processing server state
 
 **Key Files**:
+
 - `src/types.ts` - TypeScript interfaces for state and components
 - `src/lib/browserStorage.ts` - LocalStorage helpers for userId, userName, roomCode, Twitch tokens
 - `src/lib/markdown.ts` - Markdown rendering utilities
@@ -117,6 +131,7 @@ The application uses Socket.io for bidirectional communication between players a
 Both game-server and admin connect to the same PostgreSQL database:
 
 **Rooms Table**:
+
 - `code` (primary key) - 4-letter room code
 - `hostId` - UUID of room creator
 - `closed` - Whether new players can join
@@ -124,6 +139,7 @@ Both game-server and admin connect to the same PostgreSQL database:
 - `persistent` - Whether room persists after host disconnect
 
 **Members Table**:
+
 - `id` (UUID primary key)
 - `roomCode` - Foreign key to rooms
 - `userId`, `userName` - Player identification
@@ -136,6 +152,7 @@ Both game-server and admin connect to the same PostgreSQL database:
 The game-server uses Drizzle ORM. Schema is defined in `game-server/db.ts`.
 
 To run database migrations or updates, use drizzle-kit (installed in game-server):
+
 ```bash
 cd game-server
 npx drizzle-kit generate  # Generate migrations
@@ -145,14 +162,17 @@ npx drizzle-kit push      # Push schema changes
 ## Environment Variables
 
 ### Game Server
+
 - `PORT` - Server port (default: 9000 in dev)
 - `DATABASE_URL` - PostgreSQL connection string
 - Sentry configuration for error tracking
 
 ### Player Client
+
 Vite environment variables in `.env` files following Vite conventions (`VITE_` prefix).
 
 ### Admin Panel
+
 - `DATABASE_URL` - PostgreSQL connection string
 
 ## Node Version
@@ -162,6 +182,7 @@ This project requires Node.js >= 20.12.1 (see `.node-version` and `engines` in p
 ## Testing
 
 Player client has Vitest configured:
+
 ```bash
 cd player-client
 npm run test:unit  # Run unit tests with jsdom environment
@@ -180,13 +201,18 @@ npm run test:unit  # Run unit tests with jsdom environment
 ### Updating Member State from Host
 
 Host sends state updates via Socket.io:
+
 ```typescript
-socket.emit('member.update', {
-  to: userId,  // or array of userIds
+socket.emit("member.update", {
+  to: userId, // or array of userIds
   data: {
-    theme: { /* theme config */ },
-    ui: { /* UI config */ }
-  }
+    theme: {
+      /* theme config */
+    },
+    ui: {
+      /* UI config */
+    },
+  },
 });
 ```
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted, ref } from "vue";
-import { useRoute } from 'vue-router'
+import { useRoute } from "vue-router";
 
 import {
   getUserId,
@@ -61,7 +61,7 @@ const logOutOfTwitch = () => {
   }
 };
 
-const route = useRoute()
+const route = useRoute();
 
 onMounted(() => {
   updateTwitchData();
@@ -104,7 +104,7 @@ const joinGame = () => {
 };
 
 const state = reactive({
-  roomCode: (route.query.room?.slice(0,4) || getRoomCode()),
+  roomCode: route.query.room?.slice(0, 4) || getRoomCode(),
   userName: getUserName(),
   room: { exists: false, twitchRequired: false } as FindRoomResponse,
 });
@@ -123,10 +123,7 @@ updateRoom();
             <a
               :href="`https://id.twitch.tv/oauth2/authorize?client_id=qlfz8nlzzkq20jhl1xuawhza5xa3fm&redirect_uri=${config.playerClientUri}/twitch-auth-callback&response_type=token`"
             >
-              <font-awesome-icon
-                icon="fa-brands fa-twitch"
-                class="twitch-icon"
-              />
+              <font-awesome-icon icon="fa-brands fa-twitch" class="twitch-icon" />
             </a>
           </div>
           <div
@@ -295,7 +292,10 @@ button {
   color: white;
   background: #7c2fec;
   opacity: 0.9;
-  transition: color 0.2s, background 0.2s, opacity 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    opacity 0.2s;
 }
 
 button:disabled {

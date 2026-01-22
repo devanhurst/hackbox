@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node";
 import type { Socket } from "socket.io";
 import { authenticateWithTwitch } from "../lib/twitch";
 import { Member } from "../models";
@@ -27,8 +26,7 @@ interface MemberPayload {
 
 export default async ({ socket, roomService }: RegisterMemberInput) => {
   const handshake = socket.handshake.query as unknown as Handshake;
-  const handshakeMetadata =
-    (JSON.parse(handshake.metadata) as HandshakeMetadata) || {};
+  const handshakeMetadata = (JSON.parse(handshake.metadata) as HandshakeMetadata) || {};
   const metadata = {
     twitch: await authenticateWithTwitch(handshakeMetadata.twitchAccessToken),
   };
@@ -49,12 +47,12 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
       timestamp: Date.now(),
     };
 
-    roomService.sendToHost({
+    await roomService.sendToHost({
       event: "msg",
       payload: hostPayload,
     });
 
-    Sentry.logger.info(`[${roomService.room.code}] Message sent to host`, {
+    console.log(`[${roomService.room.code}] Message sent to host`, {
       roomCode: roomService.room.code,
       event: "msg",
       payload: hostPayload,
@@ -62,7 +60,7 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
   });
 
   socket.on("change", async (payload: MemberPayload) => {
-    roomService.sendToHost({
+    await roomService.sendToHost({
       event: "change",
       payload: {
         from: socket.data.userId,
@@ -81,6 +79,6 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
 
     if (member) await member.save({ online: false });
 
-    roomService.updateHostState();
+    await roomService.updateHostState();
   });
 };

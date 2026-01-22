@@ -61,10 +61,7 @@ export class Member {
   }
 
   static async findMany(ids: string[]): Promise<Member[]> {
-    const result = await db
-      .select()
-      .from(members)
-      .where(inArray(members.id, ids));
+    const result = await db.select().from(members).where(inArray(members.id, ids));
 
     return result.map((m) => new Member(m));
   }

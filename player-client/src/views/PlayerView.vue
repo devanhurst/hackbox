@@ -2,7 +2,7 @@
 import { provide } from "vue";
 import initializePlayerSocket from "@/lib/sockets/playerSocket";
 import router from "@/router";
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave } from "vue-router";
 
 const props = defineProps({
   windowHeight: String,
@@ -10,7 +10,7 @@ const props = defineProps({
 
 const { socket, state } = initializePlayerSocket(router);
 provide("socket", socket);
-document.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener("contextmenu", (event) => event.preventDefault());
 
 onBeforeRouteLeave(() => {
   socket.disconnect();
@@ -19,8 +19,7 @@ onBeforeRouteLeave(() => {
 
 <template>
   <div class="player-wrapper">
-    <div
-      class="player-nav--wrapper">
+    <div class="player-nav--wrapper">
       <div class="player-nav">
         {{ state.ui.header.text }}
       </div>
@@ -32,7 +31,8 @@ onBeforeRouteLeave(() => {
           :is="`${comp.type}Component`"
           :key="comp.key"
           :custom="comp.props"
-          class="player-component" />
+          class="player-component"
+        />
       </div>
     </div>
   </div>
@@ -132,7 +132,10 @@ button {
   color: white;
   background: #ed729f;
   opacity: 0.9;
-  transition: color 0.2s, background 0.2s, opacity 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    opacity 0.2s;
 }
 
 button:disabled {

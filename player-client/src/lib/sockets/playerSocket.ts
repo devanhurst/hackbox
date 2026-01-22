@@ -3,12 +3,7 @@ import { io, Socket } from "socket.io-client";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";
-import {
-  getUserId,
-  getUserName,
-  getRoomCode,
-  getTwitchAccessToken,
-} from "@/lib/browserStorage";
+import { getUserId, getUserName, getRoomCode, getTwitchAccessToken } from "@/lib/browserStorage";
 import { expandStatePresets, processFonts } from "../stateHelpers";
 import merge from "lodash/merge";
 import cloneDeep from "lodash/cloneDeep";
@@ -24,17 +19,9 @@ const stateSkeleton = {
   },
 };
 
-const attachPlayerEvents = (
-  socket: Socket,
-  state: PlayerState,
-  router: Router
-) => {
+const attachPlayerEvents = (socket: Socket, state: PlayerState, router: Router) => {
   socket.on("disconnect", (reason: string) => {
-    const reconnectReasons = [
-      "ping timeout",
-      "transport close",
-      "transport error",
-    ];
+    const reconnectReasons = ["ping timeout", "transport close", "transport error"];
     if (reconnectReasons.includes(reason)) return;
     router.push("/");
   });

@@ -24,7 +24,7 @@ const emptyMemberState = (): Member["state"] => ({
       text: "",
     },
     main: {
-      align: "start" as "start",
+      align: "start" as const,
       components: [],
     },
   },

@@ -4,9 +4,7 @@
       <UContainer>
         <nav class="flex items-center justify-between h-16">
           <div class="flex items-center gap-10">
-            <NuxtLink to="/" class="text-2xl font-bold text-primary">
-              Hackbox
-            </NuxtLink>
+            <NuxtLink to="/" class="text-2xl font-bold text-primary"> Hackbox </NuxtLink>
             <div class="flex gap-6">
               <NuxtLink
                 v-for="link in links"
@@ -31,12 +29,12 @@
 <script setup lang="ts">
 const links = [
   {
-    label: 'Home',
-    to: '/',
+    label: "Home",
+    to: "/",
   },
   {
-    label: 'Playground',
-    to: '/playground',
+    label: "Playground",
+    to: "/playground",
   },
-]
+];
 </script>

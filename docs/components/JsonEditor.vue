@@ -30,21 +30,21 @@
 
 <script setup lang="ts">
 const emit = defineEmits<{
-  update: [value: any]
-}>()
+  update: [value: any];
+}>();
 
-const jsonText = ref('')
-const error = ref<string | null>(null)
+const jsonText = ref("");
+const error = ref<string | null>(null);
 
 function handleInput(e: InputEvent) {
-  const value = (e.target as HTMLTextAreaElement)?.value || '';
+  const value = (e.target as HTMLTextAreaElement)?.value || "";
 
   try {
-    const parsed = JSON.parse(value)
-    error.value = null
-    emit('update', parsed)
+    const parsed = JSON.parse(value);
+    error.value = null;
+    emit("update", parsed);
   } catch (e: any) {
-    error.value = e.message
+    error.value = e.message;
   }
 }
 </script>

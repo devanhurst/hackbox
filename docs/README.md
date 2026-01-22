@@ -5,21 +5,25 @@ This is the official documentation and integration testing site for Hackbox.
 ## Features
 
 ### Documentation
+
 - Getting started guide
 - API reference
 - Component library documentation
 - Example use cases
 
 ### Interactive Playground
+
 The playground provides a complete environment for testing Hackbox integrations:
 
 #### Visual Builder
+
 - Add and configure components (Text, Button, Choices, TextInput, Slider)
 - Customize theme (colors, styling)
 - Drag and reorder components
 - Real-time preview
 
 #### JSON Editor
+
 - Direct JSON editing with syntax validation
 - Syncs with visual builder
 - Error highlighting
@@ -62,5 +66,5 @@ npm run dev-backend
 ### Adding New Component Types
 
 1. Add editor component in `components/editors/[Type]Editor.vue`
-3. Update `ComponentBuilder.vue` to include the new type in `componentTypes` array
-4. Add default configuration in the `addComponent` method
+2. Update `ComponentBuilder.vue` to include the new type in `componentTypes` array
+3. Add default configuration in the `addComponent` method

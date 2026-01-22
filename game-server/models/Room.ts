@@ -35,9 +35,7 @@ export const generateRoomCode = () => {
     "X",
     "Z",
   ];
-  return [1, 2, 3, 4]
-    .map(() => consonants[Math.floor(Math.random() * consonants.length)])
-    .join("");
+  return [1, 2, 3, 4].map(() => consonants[Math.floor(Math.random() * consonants.length)]).join("");
 };
 
 export class Room {
@@ -85,10 +83,7 @@ export class Room {
       ? and(eq(members.roomCode, this.code), inArray(members.userId, userIds))
       : eq(members.roomCode, this.code);
 
-    const result = await db
-      .select({ id: members.id })
-      .from(members)
-      .where(where);
+    const result = await db.select({ id: members.id }).from(members).where(where);
 
     return result.map((r) => r.id);
   }

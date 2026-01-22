@@ -46,9 +46,9 @@ const submitWip = debounce(() => {
     value: String(inputState.value),
     ms: Date.now() - mountedAt,
   });
-})
+});
 
-watch(inputState, submitWip)
+watch(inputState, submitWip);
 
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === "Enter") respond();
@@ -83,7 +83,8 @@ onUnmounted(() => {
       :min="props.min"
       :max="props.max"
       :step="props.step"
-      :disabled="inputState.submitted" />
+      :disabled="inputState.submitted"
+    />
     <input
       class="range-text-input"
       type="number"
@@ -91,16 +92,15 @@ onUnmounted(() => {
       :min="props.min"
       :max="props.max"
       :step="props.step"
-      :disabled="inputState.submitted" />
+      :disabled="inputState.submitted"
+    />
     <button @click="respond" class="submit-button">
-      <font-awesome-icon
-        v-if="inputState.submitted"
-        class="submit-icon"
-        icon="fa-solid fa-check" />
+      <font-awesome-icon v-if="inputState.submitted" class="submit-icon" icon="fa-solid fa-check" />
       <font-awesome-icon
         v-if="!inputState.submitted"
         class="submit-icon"
-        icon="fa-solid fa-paper-plane" />
+        icon="fa-solid fa-paper-plane"
+      />
     </button>
   </div>
 </template>

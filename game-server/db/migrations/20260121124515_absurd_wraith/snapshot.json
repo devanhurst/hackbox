@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "f4aea18e-6af5-4c8e-ac7f-b83ae3cc0316",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "isRlsEnabled": false,
@@ -201,9 +199,7 @@
       "table": "rooms"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "members_pkey",
       "schema": "public",
@@ -211,9 +207,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "code"
-      ],
+      "columns": ["code"],
       "nameExplicit": false,
       "name": "rooms_pkey",
       "schema": "public",

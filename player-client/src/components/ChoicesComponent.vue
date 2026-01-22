@@ -51,26 +51,26 @@ const props = {
   ...customProps.custom,
   submit: {
     ...defaultProps.submit,
-    ...(customProps.custom?.submit || {}),
+    ...customProps.custom?.submit,
     style: {
       ...defaultProps.style,
       ...defaultProps.submit.style,
-      ...(customProps.custom?.style || {}),
-      ...(customProps.custom?.submit?.style || {}),
+      ...customProps.custom?.style,
+      ...customProps.custom?.submit?.style,
       hover: {
         ...defaultProps.style.hover,
         ...defaultProps.submit.style.hover,
-        ...(customProps.custom?.style?.hover || {}),
-        ...(customProps.custom?.submit?.style?.hover || {}),
+        ...customProps.custom?.style?.hover,
+        ...customProps.custom?.submit?.style?.hover,
       },
     },
   },
   style: {
     ...defaultProps.style,
-    ...(customProps.custom?.style || {}),
+    ...customProps.custom?.style,
     hover: {
       ...defaultProps.style.hover,
-      ...(customProps.custom?.style?.hover || {}),
+      ...customProps.custom?.style?.hover,
     },
   },
 };
@@ -100,9 +100,9 @@ const submitWip = debounce(() => {
     value: response,
     ms: Date.now() - mountedAt,
   });
-})
+});
 
-watch(state, submitWip)
+watch(state, submitWip);
 
 const submitResponse = () => {
   state.submitted = true;
@@ -127,9 +127,11 @@ const removeSelection = (value: string) => {
 };
 
 const toggleSelection = (value: string) => {
-  state.selections.includes(value)
-    ? removeSelection(value)
-    : addSelection(value);
+  if (state.selections.includes(value)) {
+    removeSelection(value);
+  } else {
+    addSelection(value);
+  }
 
   if (props.multiSelect) return;
   submitResponse();
@@ -150,7 +152,8 @@ onMounted(() => {
         :disabled="state.submitted"
         :label="choice.label"
         :keys="choice.keys"
-        :style="{ ...props.style, ...choice.style }"></choice-button>
+        :style="{ ...props.style, ...choice.style }"
+      ></choice-button>
     </div>
     <choice-button
       v-if="props.multiSelect"
@@ -159,7 +162,8 @@ onMounted(() => {
       :disabled="state.submitted || state.selections.length === 0"
       :label="props.submit.label"
       :keys="['Enter']"
-      :style="{ ...props.style, ...props.submit.style }"></choice-button>
+      :style="{ ...props.style, ...props.submit.style }"
+    ></choice-button>
   </div>
   <div v-else class="choices">
     <choice-button
@@ -169,7 +173,8 @@ onMounted(() => {
       :disabled="state.submitted"
       :label="choice.label"
       :keys="choice.keys"
-      :style="{ ...props.style, ...choice.style }"></choice-button>
+      :style="{ ...props.style, ...choice.style }"
+    ></choice-button>
     <choice-button
       v-if="props.multiSelect"
       key="submit-button"
@@ -177,7 +182,8 @@ onMounted(() => {
       :disabled="state.submitted || state.selections.length === 0"
       :label="props.submit.label"
       :keys="['Enter']"
-      :style="{ ...props.style, ...props.submit.style }"></choice-button>
+      :style="{ ...props.style, ...props.submit.style }"
+    ></choice-button>
   </div>
 </template>
 

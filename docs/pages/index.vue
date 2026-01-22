@@ -2,20 +2,13 @@
   <div class="py-16">
     <UContainer>
       <div class="text-center">
-        <h1 class="text-5xl font-bold text-gray-900 mb-6">
-          Hackbox Developer Documentation
-        </h1>
+        <h1 class="text-5xl font-bold text-gray-900 mb-6">Hackbox Developer Documentation</h1>
         <p class="text-xl text-gray-600 mb-12 max-w-3xl mx-auto">
-          Build real-time multiplayer experiences with Hackbox.
-          Create custom games where players use their phones as controllers.
+          Build real-time multiplayer experiences with Hackbox. Create custom games where players
+          use their phones as controllers.
         </p>
         <div class="flex justify-center gap-4">
-          <UButton
-            to="/playground"
-            size="xl"
-            color="primary"
-            label="Try Playground"
-          />
+          <UButton to="/playground" size="xl" color="primary" label="Try Playground" />
         </div>
       </div>
 
@@ -33,7 +26,8 @@
             <h3 class="text-lg font-semibold">Dynamic UI Components</h3>
           </template>
           <p class="text-gray-600">
-            Send JSON payloads to render buttons, text, choices, and custom components on player devices.
+            Send JSON payloads to render buttons, text, choices, and custom components on player
+            devices.
           </p>
         </UCard>
         <UCard>

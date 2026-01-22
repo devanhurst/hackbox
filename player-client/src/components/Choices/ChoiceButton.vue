@@ -64,10 +64,10 @@ const props = {
   ...customProps,
   style: {
     ...defaultProps.style,
-    ...(customProps.style || {}),
+    ...customProps.style,
     hover: {
       ...defaultProps.style.hover,
-      ...(customProps.style?.hover || {}),
+      ...customProps.style?.hover,
     },
   },
 };
@@ -104,7 +104,9 @@ onUnmounted(() => {
     @click="handleSelect"
     :disabled="state.selected"
     :class="`choice ${state.selected ? 'choice--selected' : ''}`"
-    ><span class="choice-label" v-html="label"></span></button>
+  >
+    <span class="choice-label" v-html="label"></span>
+  </button>
 </template>
 
 <style scoped>
@@ -124,9 +126,7 @@ onUnmounted(() => {
 
 .choice--selected {
   color: v-bind("props.style.hover.color || props.style.color");
-  background: v-bind(
-    "props.style.hover.background || props.style.hover.background"
-  );
+  background: v-bind("props.style.hover.background || props.style.hover.background");
 }
 
 .choice--not-selected {
@@ -136,9 +136,7 @@ onUnmounted(() => {
 .choice:hover:not(:disabled) {
   cursor: pointer;
   color: v-bind("props.style.hover.color || props.style.hover.color");
-  background: v-bind(
-    "props.style.hover.background || props.style.hover.background"
-  );
+  background: v-bind("props.style.hover.background || props.style.hover.background");
 }
 
 .choice:disabled {

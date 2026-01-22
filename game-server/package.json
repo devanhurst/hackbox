@@ -2,6 +2,9 @@
   "name": "hackbox-game-server",
   "version": "1.0.0",
   "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "main": "index.ts",
   "scripts": {
     "build": "npm install && npx tsc && npm run sentry:sourcemaps",
@@ -10,9 +13,6 @@
     "update-server": "git fetch && git reset --hard origin/main && npm run build && PORT=3000 npm run start",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project game-server ./dist && sentry-cli sourcemaps upload --org hackbox --project game-server ./dist"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@fastify/deepmerge": "^3.2.0",
     "@sentry/node": "^10.35.0",

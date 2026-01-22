@@ -24,13 +24,11 @@ const setRoomCode = (code: string) => {
   window.localStorage.setItem(ROOMCODE_KEY, code.slice(0, 4).toUpperCase());
 };
 
-const getTwitchAccessToken = () =>
-  window.localStorage.getItem(TWITCH_ACCESS_TOKEN) || "";
+const getTwitchAccessToken = () => window.localStorage.getItem(TWITCH_ACCESS_TOKEN) || "";
 const setTwitchAccessToken = (token: string) => {
   window.localStorage.setItem(TWITCH_ACCESS_TOKEN, token);
 };
-const deleteTwitchAccessToken = () =>
-  window.localStorage.removeItem(TWITCH_ACCESS_TOKEN);
+const deleteTwitchAccessToken = () => window.localStorage.removeItem(TWITCH_ACCESS_TOKEN);
 
 export {
   getUserId,

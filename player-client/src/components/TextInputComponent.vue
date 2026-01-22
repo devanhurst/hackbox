@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Socket } from "socket.io-client";
 import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
-import { debounce } from '@/lib/helpers';
+import { debounce } from "@/lib/helpers";
 
 const socket: Socket = inject("socket") as Socket;
 
@@ -20,7 +20,7 @@ const defaultProps = {
     padding: "10px",
     margin: "10px 0",
     borderRadius: "0px",
-    fontFamily: "sans-serif"
+    fontFamily: "sans-serif",
   },
 };
 
@@ -90,22 +90,22 @@ onUnmounted(() => {
       :min="props.min"
       :max="props.max"
       v-model="inputState.value"
-      :disabled="inputState.submitted" />
+      :disabled="inputState.submitted"
+    />
     <input
       v-else
       class="text-input"
       type="text"
       v-model="inputState.value"
-      :disabled="inputState.submitted" />
+      :disabled="inputState.submitted"
+    />
     <button @click="respond" class="submit-button">
-      <font-awesome-icon
-        v-if="inputState.submitted"
-        class="submit-icon"
-        icon="fa-solid fa-check" />
+      <font-awesome-icon v-if="inputState.submitted" class="submit-icon" icon="fa-solid fa-check" />
       <font-awesome-icon
         v-if="!inputState.submitted"
         class="submit-icon"
-        icon="fa-solid fa-paper-plane" />
+        icon="fa-solid fa-paper-plane"
+      />
     </button>
   </div>
 </template>

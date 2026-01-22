@@ -16,7 +16,7 @@ interface UsersResponse {
 }
 
 export const authenticateWithTwitch = async (
-  twitchAccessToken: string | undefined
+  twitchAccessToken: string | undefined,
 ): Promise<TwitchMetadata | undefined> => {
   if (!twitchAccessToken) return undefined;
 

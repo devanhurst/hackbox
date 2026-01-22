@@ -22,7 +22,7 @@ const defaultProps = {
     {
       label: "A: Hydrogen",
       value: "A",
-    }
+    },
   ],
   submit: {
     label: "Submit",
@@ -46,26 +46,26 @@ const props = {
   ...customProps.custom,
   submit: {
     ...defaultProps.submit,
-    ...(customProps.custom?.submit || {}),
+    ...customProps.custom?.submit,
     style: {
       ...defaultProps.style,
       ...defaultProps.submit.style,
-      ...(customProps.custom?.style || {}),
-      ...(customProps.custom?.submit?.style || {}),
+      ...customProps.custom?.style,
+      ...customProps.custom?.submit?.style,
       hover: {
         ...defaultProps.style.hover,
         ...defaultProps.submit.style.hover,
-        ...(customProps.custom?.style?.hover || {}),
-        ...(customProps.custom?.submit?.style?.hover || {}),
+        ...customProps.custom?.style?.hover,
+        ...customProps.custom?.submit?.style?.hover,
       },
     },
   },
   style: {
     ...defaultProps.style,
-    ...(customProps.custom?.style || {}),
+    ...customProps.custom?.style,
     hover: {
       ...defaultProps.style.hover,
-      ...(customProps.custom?.style?.hover || {}),
+      ...customProps.custom?.style?.hover,
     },
   },
 };
@@ -107,7 +107,8 @@ onMounted(() => {
           :key="choice.value"
           :label="choice.label"
           :submitted="state.submitted"
-          :style="{ ...props.style, ...choice.style }"></sort-option>
+          :style="{ ...props.style, ...choice.style }"
+        ></sort-option>
       </div>
     </VueDraggable>
     <choice-button
@@ -116,7 +117,8 @@ onMounted(() => {
       :disabled="state.submitted"
       :label="props.submit.label"
       :keys="['Enter']"
-      :style="{ ...props.style, ...props.submit.style }"></choice-button>
+      :style="{ ...props.style, ...props.submit.style }"
+    ></choice-button>
   </div>
 </template>
 
