@@ -12,7 +12,9 @@ export const rooms = pgTable("rooms", {
 
 export const members = pgTable("members", {
   id: uuid("id").primaryKey().defaultRandom(),
-  roomCode: text("room_code").notNull(),
+  roomCode: text("room_code")
+    .notNull()
+    .references(() => rooms.code, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull(),
   userName: text("user_name").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -22,7 +22,7 @@ interface HandshakeMetadata {
 
 interface MemberPayload {
   event: string;
-  value: unknown;
+  value: string;
 }
 
 export default async ({ socket, roomService }: RegisterMemberInput) => {
@@ -53,11 +53,14 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
 
     await roomService.sendToHost(message);
 
-    Sentry.logger.info(`[${roomService.room.code}:${socket.data.userName}] Message sent`, {
-      roomCode: roomService.room.code,
-      userName: socket.data.userName,
-      message,
-    });
+    Sentry.logger.info(
+      `[${roomService.room.code}] ${socket.data.userName} sent [${payload.event}] ${payload.value}`,
+      {
+        roomCode: roomService.room.code,
+        userName: socket.data.userName,
+        message,
+      },
+    );
   });
 
   socket.on("change", async (payload: MemberPayload) => {
@@ -72,12 +75,6 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
     };
 
     await roomService.sendToHost(message);
-
-    Sentry.logger.info(`[${roomService.room.code}:${socket.data.userName}] Input changed`, {
-      roomCode: roomService.room.code,
-      userName: socket.data.userName,
-      message,
-    });
   });
 
   socket.on("disconnect", async () => {

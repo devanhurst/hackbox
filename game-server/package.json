@@ -10,8 +10,8 @@
     "build": "npm install && npx tsc && npm run sentry:sourcemaps",
     "start": "node dist/index.js",
     "dev": "PORT=9000 tsx --watch index.ts",
-    "update-server": "git fetch && git reset --hard origin/main && npm run build && PORT=3000 npm run start",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project game-server ./dist && sentry-cli sourcemaps upload --org hackbox --project game-server ./dist"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project game-server ./dist && sentry-cli sourcemaps upload --org hackbox --project game-server ./dist",
+    "migrate": "npx drizzle-kit migrate"
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.2.0",
