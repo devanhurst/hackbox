@@ -1,32 +1,31 @@
-# Hackbox Documentation Site
+# Hackbox Docs
 
-This is the official documentation and integration testing site for Hackbox.
+Official documentation and interactive playground for Hackbox, built with [Docus](https://docus.dev).
 
 ## Features
 
 ### Documentation
 
+Built with Docus, providing:
+
+- Modern, responsive design with dark mode
+- Full-text search
+- Automatic navigation from content structure
+- MDC (Markdown Components) support
+
+Content includes:
+
 - Getting started guide
 - API reference
 - Component library documentation
-- Example use cases
+- Interactive playground guide
 
 ### Interactive Playground
 
-The playground provides a complete environment for testing Hackbox integrations:
+The playground (`/playground`) provides a complete environment for testing Hackbox integrations:
 
-#### Visual Builder
-
-- Add and configure components (Text, Button, Choices, TextInput, Slider)
-- Customize theme (colors, styling)
-- Drag and reorder components
-- Real-time preview
-
-#### JSON Editor
-
-- Direct JSON editing with syntax validation
-- Syncs with visual builder
-- Error highlighting
+- **JSON Editor** - Direct JSON editing with syntax validation
+- **Live Device Testing** - Real-time sync with connected mobile devices
 
 ## Getting Started
 
@@ -39,15 +38,16 @@ npm install
 
 ### Development
 
-```bash
-# From docs directory
-npm run dev
+It's preferred to run all hackbox services at once.
 
-# Or from root directory
-npm run dev-docs
+```bash
+# From the root directory
+npm run dev
 ```
 
-The site will be available at `http://localhost:9002/`
+The game server is available at `http://localhost:9000`
+The player client is available at `http://localhost:9001`
+The documentation site will be available at `http://localhost:9002/`
 
 ## Using the Playground
 
@@ -56,15 +56,4 @@ The site will be available at `http://localhost:9002/`
 1. Navigate to `/playground`
 2. Click "Create Room" to start a game server connection
 3. Edit the payload in the builder/editor
-4. Changes automatically sync to connected devices
-
-```bash
-# Start game server from root
-npm run dev-backend
-```
-
-### Adding New Component Types
-
-1. Add editor component in `components/editors/[Type]Editor.vue`
-2. Update `ComponentBuilder.vue` to include the new type in `componentTypes` array
-3. Add default configuration in the `addComponent` method
+4. Changes automatically sync to connected devices=

@@ -20,20 +20,18 @@ const defaultProps = {
     fontSize: "70px",
     height: "300px",
     border: "2px solid white",
-    hover: {},
   },
 };
 
-const customProps = defineProps(["custom"]);
+const { custom } = defineProps(["custom"]);
 const props = {
   ...defaultProps,
-  ...customProps.custom,
+  ...custom,
   style: {
     ...defaultProps.style,
-    ...customProps.custom?.style,
+    ...custom?.style,
     hover: {
-      ...defaultProps.style.hover,
-      ...customProps.custom?.style?.hover,
+      ...custom?.style?.hover,
     },
   },
 };

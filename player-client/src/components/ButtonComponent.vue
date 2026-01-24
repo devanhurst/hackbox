@@ -10,21 +10,17 @@ const defaultProps = {
   label: "A: 42",
   value: "A",
   keys: ["A", "1"],
-  style: {
-    hover: {},
-  },
 };
 
-const customProps = defineProps(["custom"]);
+const { custom } = defineProps(["custom"]);
+
 const props = {
   ...defaultProps,
-  ...customProps.custom,
+  ...custom,
   style: {
-    ...defaultProps.style,
-    ...customProps.custom?.style,
+    ...custom?.style,
     hover: {
-      ...defaultProps.style.hover,
-      ...customProps.custom?.style?.hover,
+      ...custom?.style?.hover,
     },
   },
 };

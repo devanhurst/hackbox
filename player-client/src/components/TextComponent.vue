@@ -2,7 +2,7 @@
 import markdown from "@/lib/markdown";
 import { computed } from "vue";
 
-const customProps = defineProps(["custom"]);
+const { custom } = defineProps(["custom"]);
 
 const defaultProps = {
   text: "Sample Text",
@@ -22,10 +22,10 @@ const defaultProps = {
 
 const props = {
   ...defaultProps,
-  ...customProps.custom,
+  ...custom,
   style: {
     ...defaultProps.style,
-    ...customProps.custom?.style,
+    ...custom?.style,
   },
 };
 

@@ -20,15 +20,26 @@ const defaultProps = {
   multiSelect: false,
   choices: [
     {
-      label: "A: Hydrogen",
+      label: "A: Helium",
       value: "A",
+    },
+    {
+      label: "B: Neon",
+      value: "B",
+    },
+    {
+      label: "C: Krypton",
+      value: "C",
+    },
+    {
+      label: "D: Boron",
+      value: "D",
     },
   ],
   submit: {
     label: "Submit",
     style: {
       margin: "50px 0px",
-      hover: {},
     },
   },
   style: {
@@ -36,36 +47,33 @@ const defaultProps = {
     gridColumns: 2,
     gridRowHeight: "1fr",
     gridGap: "10px",
-    hover: {},
   },
 };
 
-const customProps = defineProps(["custom"]);
+const { custom } = defineProps(["custom"]);
+
 const props = {
   ...defaultProps,
-  ...customProps.custom,
+  ...custom,
   submit: {
     ...defaultProps.submit,
-    ...customProps.custom?.submit,
+    ...custom?.submit,
     style: {
       ...defaultProps.style,
       ...defaultProps.submit.style,
-      ...customProps.custom?.style,
-      ...customProps.custom?.submit?.style,
+      ...custom?.style,
+      ...custom?.submit?.style,
       hover: {
-        ...defaultProps.style.hover,
-        ...defaultProps.submit.style.hover,
-        ...customProps.custom?.style?.hover,
-        ...customProps.custom?.submit?.style?.hover,
+        ...custom?.style?.hover,
+        ...custom?.submit?.style?.hover,
       },
     },
   },
   style: {
     ...defaultProps.style,
-    ...customProps.custom?.style,
+    ...custom?.style,
     hover: {
-      ...defaultProps.style.hover,
-      ...customProps.custom?.style?.hover,
+      ...custom?.style?.hover,
     },
   },
 };

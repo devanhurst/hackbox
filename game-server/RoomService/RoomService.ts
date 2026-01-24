@@ -41,8 +41,8 @@ export class RoomService {
       await this.joinAsMember(socket);
     }
 
-    socket.join(this.room.code);
-    this.updateHostState();
+    void socket.join(this.room.code);
+    void this.updateHostState();
   }
 
   async joinAsHost(socket: Socket) {
@@ -91,7 +91,7 @@ export class RoomService {
         disconnect(s as unknown as Socket, "You have connected from another device.");
       });
 
-    this.updateMemberStates({
+    void this.updateMemberStates({
       recipients: [socket.data.userId],
       newState: member.state,
     });
@@ -162,7 +162,7 @@ export class RoomService {
     members.forEach(async (member) => {
       const state = sanitizeState(newState);
 
-      member.save({ state });
+      void member.save({ state });
 
       const memberSocket = memberSockets.find((s) => s.data.userId === member.userId);
 

@@ -24,11 +24,11 @@ const defaultProps = {
   },
 };
 
-const customProps = defineProps(["custom"]);
+const { custom } = defineProps(["custom"]);
 const props = {
   ...defaultProps,
-  ...customProps.custom,
-  style: { ...defaultProps.style, ...customProps.custom.style },
+  ...custom,
+  style: { ...defaultProps.style, ...custom.style },
 };
 
 const inputState = reactive({
