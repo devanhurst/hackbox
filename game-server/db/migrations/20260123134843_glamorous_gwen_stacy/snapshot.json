@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "9863e08f-de4e-4cb2-9bbf-cc6d3635184e",
-  "prevIds": [
-    "f4aea18e-6af5-4c8e-ac7f-b83ae3cc0316"
-  ],
+  "prevIds": ["f4aea18e-6af5-4c8e-ac7f-b83ae3cc0316"],
   "ddl": [
     {
       "isRlsEnabled": false,
@@ -202,14 +200,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "room_code"
-      ],
+      "columns": ["room_code"],
       "schemaTo": "public",
       "tableTo": "rooms",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "members_room_code_rooms_code_fkey",
@@ -218,9 +212,7 @@
       "table": "members"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "members_pkey",
       "schema": "public",
@@ -228,9 +220,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "code"
-      ],
+      "columns": ["code"],
       "nameExplicit": false,
       "name": "rooms_pkey",
       "schema": "public",
