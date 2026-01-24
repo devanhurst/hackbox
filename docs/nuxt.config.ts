@@ -7,4 +7,7 @@ export default defineNuxtConfig({
   devServer: {
     port: import.meta.env.VITE_PORT || 3000,
   },
+  site: {
+    name: "Hackbox",
+  },
 });

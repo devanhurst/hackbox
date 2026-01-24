@@ -1,7 +1,24 @@
 ---
-title: Hello
-navigation: true
-description: Hello
+seo:
+  title: Build party games with Hackbox 📦
+  description: Hackbox is a real-time multiplayer game framework that allows you to create games where players use their mobile devices as controllers. Just bring your own websocket-compatible game, and let Hackbox handle the rest!
 ---
 
-# Hello
+::u-page-hero
+#title
+Build party games with Hackbox 📦
+
+#description
+Hackbox is a real-time multiplayer game framework that allows you to create games where players use their mobile devices as controllers. Just bring your own websocket-compatible game, and let Hackbox handle the rest!
+
+#links
+  :::u-button
+  ---
+  color: neutral
+  size: xl
+  to: /docs/getting-started
+  trailing-icon: i-lucide-arrow-right
+  ---
+  Get started
+  :::
+::

@@ -1,33 +1,30 @@
 <template>
-  <div class="space-y-6">
-    <div v-if="!connected" class="text-center">
-      <UButton @click="createRoom" :loading="loading" size="xl" label="Create Room" />
-      <p class="text-sm text-gray-600 mt-3">Create a room to test your payloads on real devices</p>
-    </div>
+  <div v-if="!connected" class="text-center">
+    <UButton @click="createRoom" :loading="loading" size="xl" label="Create Room" />
+  </div>
 
-    <UCard v-else class="shadow-lg">
-      <div class="text-center space-y-4">
-        <div
-          class="flex items-center justify-center space-x-4 text-3xl font-mono font-bold text-primary tracking-wider"
-        >
-          <span>{{ roomCode }}</span>
-        </div>
+  <UCard v-else class="shadow-lg">
+    <div class="text-center space-y-4">
+      <div
+        class="flex items-center justify-center space-x-4 text-3xl font-mono font-bold text-primary tracking-wider"
+      >
+        <span>{{ roomCode }}</span>
+      </div>
 
-        <div class="pt-4 border-t">
-          <p class="text-sm text-gray-600 mb-2">Connected Players: {{ connectedPlayers.length }}</p>
-          <div v-if="connectedPlayers.length > 0" class="space-y-2">
-            <UCard v-for="player in connectedPlayers" :key="player.id" class="p-3">
-              <div class="flex items-center justify-between">
-                <UBadge color="neutral" variant="subtle" size="md">
-                  {{ player.name }}
-                </UBadge>
-              </div>
-            </UCard>
-          </div>
+      <div class="pt-4 border-t">
+        <p class="text-sm text-gray-600 mb-2">Connected Players: {{ connectedPlayers.length }}</p>
+        <div v-if="connectedPlayers.length > 0" class="space-y-2">
+          <UCard v-for="player in connectedPlayers" :key="player.id" class="p-3">
+            <div class="flex items-center justify-between">
+              <UBadge color="neutral" variant="subtle" size="md">
+                {{ player.name }}
+              </UBadge>
+            </div>
+          </UCard>
         </div>
       </div>
-    </UCard>
-  </div>
+    </div>
+  </UCard>
 </template>
 
 <script setup lang="ts">
