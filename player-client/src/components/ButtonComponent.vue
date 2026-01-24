@@ -2,28 +2,21 @@
 import ChoiceButton from "./Choices/ChoiceButton.vue";
 import type { Socket } from "socket.io-client";
 import { inject, onMounted, reactive } from "vue";
+import { mergeProps } from "@/lib/helpers";
+
 const socket: Socket = inject("socket") as Socket;
 
 let mountedAt: number;
 
-const defaultProps = {
-  label: "A: 42",
-  value: "A",
-  keys: ["A", "1"],
-};
-
 const { custom } = defineProps(["custom"]);
-
-const props = {
-  ...defaultProps,
-  ...custom,
-  style: {
-    ...custom?.style,
-    hover: {
-      ...custom?.style?.hover,
-    },
+const props = mergeProps(
+  {
+    label: "A: 42",
+    value: "A",
+    keys: ["A", "1"],
   },
-};
+  custom,
+);
 
 interface State {
   submitted: boolean;

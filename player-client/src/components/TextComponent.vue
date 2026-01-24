@@ -1,33 +1,27 @@
 <script setup lang="ts">
 import markdown from "@/lib/markdown";
 import { computed } from "vue";
+import { mergeProps } from "@/lib/helpers";
 
 const { custom } = defineProps(["custom"]);
-
-const defaultProps = {
-  text: "Sample Text",
-  style: {
-    color: "black",
-    align: "center",
-    background: "white",
-    border: "4px solid black",
-    width: "auto",
-    fontSize: "16px",
-    padding: "10px",
-    margin: "10px 0px",
-    borderRadius: "10px",
-    fontFamily: "sans-serif",
+const props = mergeProps(
+  {
+    text: "Sample Text",
+    style: {
+      color: "black",
+      align: "center",
+      background: "white",
+      border: "4px solid black",
+      width: "auto",
+      fontSize: "16px",
+      padding: "10px",
+      margin: "10px 0px",
+      borderRadius: "10px",
+      fontFamily: "sans-serif",
+    },
   },
-};
-
-const props = {
-  ...defaultProps,
-  ...custom,
-  style: {
-    ...defaultProps.style,
-    ...custom?.style,
-  },
-};
+  custom,
+);
 
 const text = computed(() => markdown(props.text));
 </script>

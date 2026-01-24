@@ -53,7 +53,6 @@ async function createRoom() {
   loading.value = true;
 
   try {
-    // Step 1: Create room via REST API
     const response = await fetch(`${appConfig.backendUri}/rooms`, {
       method: "POST",
       headers: {
@@ -75,7 +74,6 @@ async function createRoom() {
 
     localRoomCode.value = data.roomCode;
 
-    // Step 2: Connect to Socket.io as host with roomCode and userId query params
     socket.value = io(appConfig.backendUri as string, {
       query: {
         roomCode: data.roomCode,
@@ -85,7 +83,6 @@ async function createRoom() {
 
     await new Promise<void>((resolve) => {
       socket.value!.on("connect", () => {
-        console.log("Connected to game server as host");
         resolve();
       });
     });
@@ -93,10 +90,7 @@ async function createRoom() {
     connected.value = true;
     loading.value = false;
 
-    // Listen for host state updates
     socket.value!.on("state.host", (state: any) => {
-      console.log("Host state updated:", state);
-      // Update connected players from members object
       connectedPlayers.value = Object.values(state.members).filter((m: any) => m.online);
     });
   } catch (error) {
@@ -105,7 +99,6 @@ async function createRoom() {
   }
 }
 
-// Expose method to send updates to players
 defineExpose({
   sendUpdate(data: any) {
     if (socket.value && connectedPlayers.value.length > 0) {

@@ -62,10 +62,14 @@ export const sanitizeState = (state: Partial<Member["state"]>) => {
 
   const randomId = randomUUID().substring(0, 3);
 
-  newState.ui.main.components = newState.ui.main.components.map((c, index) => ({
-    key: `${randomId}-${index}`,
-    ...c,
-  }));
+  if (!Array.isArray(newState.ui.main.components)) {
+    newState.ui.main.components = [];
+  } else {
+    newState.ui.main.components = newState.ui.main.components.map((c, index) => ({
+      key: `${randomId}-${index}`,
+      ...c,
+    }));
+  }
 
   return newState;
 };

@@ -4,6 +4,7 @@ import SortOption from "./Sort/SortOption.vue";
 import type { Socket } from "socket.io-client";
 import { inject, onMounted, reactive, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
+import { mergeProps } from "@/lib/helpers";
 
 const socket: Socket = inject("socket") as Socket;
 
@@ -15,68 +16,44 @@ interface Choice {
   style?: object;
 }
 
-const defaultProps = {
-  event: "answer",
-  multiSelect: false,
-  choices: [
-    {
-      label: "A: Helium",
-      value: "A",
-    },
-    {
-      label: "B: Neon",
-      value: "B",
-    },
-    {
-      label: "C: Krypton",
-      value: "C",
-    },
-    {
-      label: "D: Boron",
-      value: "D",
-    },
-  ],
-  submit: {
-    label: "Submit",
-    style: {
-      margin: "50px 0px",
-    },
-  },
-  style: {
-    grid: false,
-    gridColumns: 2,
-    gridRowHeight: "1fr",
-    gridGap: "10px",
-  },
-};
-
 const { custom } = defineProps(["custom"]);
-
-const props = {
-  ...defaultProps,
-  ...custom,
-  submit: {
-    ...defaultProps.submit,
-    ...custom?.submit,
-    style: {
-      ...defaultProps.style,
-      ...defaultProps.submit.style,
-      ...custom?.style,
-      ...custom?.submit?.style,
-      hover: {
-        ...custom?.style?.hover,
-        ...custom?.submit?.style?.hover,
+const props = mergeProps(
+  {
+    event: "answer",
+    multiSelect: false,
+    choices: [
+      {
+        label: "A: Helium",
+        value: "A",
+      },
+      {
+        label: "B: Neon",
+        value: "B",
+      },
+      {
+        label: "C: Krypton",
+        value: "C",
+      },
+      {
+        label: "D: Boron",
+        value: "D",
+      },
+    ],
+    submit: {
+      label: "Submit",
+      style: {
+        margin: "50px 0px",
       },
     },
-  },
-  style: {
-    ...defaultProps.style,
-    ...custom?.style,
-    hover: {
-      ...custom?.style?.hover,
+    style: {
+      grid: false,
+      gridColumns: 2,
+      gridRowHeight: "1fr",
+      gridGap: "10px",
     },
   },
-};
+  custom,
+);
 
 interface State {
   choices: Choice[];

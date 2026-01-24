@@ -1,37 +1,34 @@
 <script setup lang="ts">
 import type { Socket } from "socket.io-client";
 import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
-import { debounce } from "@/lib/helpers";
+import { debounce, mergeProps } from "@/lib/helpers";
 
 const socket: Socket = inject("socket") as Socket;
 
 let mountedAt: number;
 
-const defaultProps = {
-  event: "range",
-  min: 0,
-  max: 100,
-  step: 1,
-  style: {
-    color: "black",
-    align: "left",
-    background: "white",
-    border: "2px solid black",
-    width: "100%",
-    fontSize: "16px",
-    padding: "10px",
-    margin: "10px 0",
-    borderRadius: "0px",
-    fontFamily: "sans-serif",
-  },
-};
-
 const { custom } = defineProps(["custom"]);
-const props = {
-  ...defaultProps,
-  ...custom,
-  style: { ...defaultProps.style, ...custom.style },
-};
+const props = mergeProps(
+  {
+    event: "range",
+    min: 0,
+    max: 100,
+    step: 1,
+    style: {
+      color: "black",
+      align: "left",
+      background: "white",
+      border: "2px solid black",
+      width: "100%",
+      fontSize: "16px",
+      padding: "10px",
+      margin: "10px 0",
+      borderRadius: "0px",
+      fontFamily: "sans-serif",
+    },
+  },
+  custom,
+);
 
 const inputState = reactive({
   value: 0,

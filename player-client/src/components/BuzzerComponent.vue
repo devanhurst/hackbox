@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, reactive } from "vue";
 import type { Socket } from "socket.io-client";
+import { mergeProps } from "@/lib/helpers";
 
 let mountedAt: number;
 const buzzerState = reactive({
@@ -9,32 +10,23 @@ const buzzerState = reactive({
 
 const socket = inject("socket") as Socket;
 
-const defaultProps = {
-  label: "BUZZ",
-  event: "buzz",
-  style: {
-    color: "white",
-    background: "red",
-    shadow: "5px 5px #000000",
-    radius: "70px",
-    fontSize: "70px",
-    height: "300px",
-    border: "2px solid white",
-  },
-};
-
 const { custom } = defineProps(["custom"]);
-const props = {
-  ...defaultProps,
-  ...custom,
-  style: {
-    ...defaultProps.style,
-    ...custom?.style,
-    hover: {
-      ...custom?.style?.hover,
+const props = mergeProps(
+  {
+    label: "BUZZ",
+    event: "buzz",
+    style: {
+      color: "white",
+      background: "red",
+      shadow: "5px 5px #000000",
+      radius: "70px",
+      fontSize: "70px",
+      height: "300px",
+      border: "2px solid white",
     },
   },
-};
+  custom,
+);
 
 const respond = () => {
   buzzerState.buzzed = true;
