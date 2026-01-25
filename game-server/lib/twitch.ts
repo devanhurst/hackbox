@@ -1,5 +1,3 @@
-import { env } from "node:process";
-
 export interface TwitchMetadata {
   id: string;
   username: string;
@@ -20,14 +18,12 @@ export const authenticateWithTwitch = async (
 ): Promise<TwitchMetadata | undefined> => {
   if (!twitchAccessToken) return undefined;
 
-  if (env.MOCK_HTTP) return authenticateWithTwitchMock();
-
   try {
     const response = await fetch("https://api.twitch.tv/helix/users", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${twitchAccessToken}`,
-        "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
+        "Client-Id": process.env.TWITCH_CLIENT_ID,
       },
     });
 
@@ -46,12 +42,4 @@ export const authenticateWithTwitch = async (
   } catch {
     return undefined;
   }
-};
-
-const authenticateWithTwitchMock = (): TwitchMetadata => {
-  return {
-    id: "123456123456",
-    username: "twitchuser",
-    photo: "assets/twitch_user_photo.png",
-  };
 };

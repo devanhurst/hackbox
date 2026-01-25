@@ -57,7 +57,6 @@ async function createRoom() {
       },
       body: JSON.stringify({
         hostId,
-        twitchRequired: false,
       }),
     });
 

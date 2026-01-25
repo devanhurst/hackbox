@@ -32,6 +32,8 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
     twitch: await authenticateWithTwitch(handshakeMetadata.twitchAccessToken),
   };
 
+  console.log({ metadata });
+
   socket.data = {
     type: "member",
     userId: handshake.userId,
