@@ -46,7 +46,7 @@ const attachPlayerEvents = (socket: Socket, state: PlayerState, router: Router) 
 };
 
 const initializePlayerSocket = (router: Router) => {
-  const socket = io(config.backendUri, {
+  const socket = io(config.serverUrl, {
     query: {
       userId: getUserId(),
       userName: getUserName(),

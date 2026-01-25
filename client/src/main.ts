@@ -14,19 +14,20 @@ library.add(faPaperPlane, faCheck, faTwitch);
 
 const app = createApp(App);
 
-Sentry.init({
-  app,
-  enabled: config.sentryEnabled,
-  dsn: "https://c461bfb8904ecb4c0a266b1751087809@o4507848851652608.ingest.us.sentry.io/4507861181792256",
-  integrations: [
-    Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration({ maskAllText: false, blockAllMedia: false }),
-  ],
-  tracePropagationTargets: ["localhost", /^https:\/\/app\.hackbox\.ca/],
-  tracesSampleRate: config.sentryTraceSampleRate,
-  replaysSessionSampleRate: config.sentrySessionReplaySampleRate,
-  replaysOnErrorSampleRate: config.sentryErrorReplaySampleRate,
-});
+if (config.sentryEnabled) {
+  Sentry.init({
+    app,
+    dsn: `${config.sentryDomain}/${config.sentryProjectId}`,
+    integrations: [
+      Sentry.browserTracingIntegration({ router }),
+      Sentry.replayIntegration({ maskAllText: false, blockAllMedia: false }),
+    ],
+    tracePropagationTargets: ["localhost", /^https:\/\/app\.hackbox\.ca/],
+    tracesSampleRate: config.sentryTraceSampleRate,
+    replaysSessionSampleRate: config.sentrySessionReplaySampleRate,
+    replaysOnErrorSampleRate: config.sentryErrorReplaySampleRate,
+  });
+}
 
 app.use(router);
 

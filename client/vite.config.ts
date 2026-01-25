@@ -1,13 +1,11 @@
 import { fileURLToPath, URL } from "url";
-import { sentryVitePlugin } from "./$node_modules/@sentry/vite-plugin/dist/types/index.js";
-import { defineConfig, loadEnv } from "./$node_modules/vite/dist/node/index.js";
-import vue from "./$node_modules/@vitejs/plugin-vue/dist/index.mjs";
-import vueJsx from "./$node_modules/@vitejs/plugin-vue-jsx/dist/index.mjs";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import vueJsx from "@vitejs/plugin-vue-jsx";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-
+export default defineConfig(() => {
   return {
     plugins: [
       vue({}),
@@ -24,7 +22,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: parseInt(env.VITE_PORT as string, 10),
+      port: parseInt(process.env.PORT as string, 10),
     },
   };
 });

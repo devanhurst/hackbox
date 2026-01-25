@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { io, type Socket } from "socket.io-client";
 
-const appConfig = useAppConfig();
+const config = useRuntimeConfig();
 
 const props = defineProps<{
   roomCode: string | null;
@@ -50,7 +50,7 @@ async function createRoom() {
   loading.value = true;
 
   try {
-    const response = await fetch(`${appConfig.backendUri}/rooms`, {
+    const response = await fetch(`${config.public.serverUrl}/rooms`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -70,7 +70,7 @@ async function createRoom() {
 
     localRoomCode.value = data.roomCode;
 
-    socket.value = io(appConfig.backendUri as string, {
+    socket.value = io(config.public.serverUrl as string, {
       query: {
         roomCode: data.roomCode,
         userId: hostId,

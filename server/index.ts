@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import registerRoutes from "./api";
 import { RoomService } from "./RoomService";
 
-const port: number = parseInt(process.env.PORT, 10);
+const port: number = parseInt(process.env.PORT as string, 10);
 
 const app = express();
 app.use(cors({ origin: "*" }));

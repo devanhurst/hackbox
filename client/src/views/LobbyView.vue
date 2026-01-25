@@ -119,22 +119,24 @@ updateRoom();
         <div class="lobby-nav--left"></div>
         <div class="lobby-nav--center">hackbox</div>
         <div class="lobby-nav--right">
-          <div v-if="!twitchData" class="twitch-icon--container__logged-out">
-            <a
-              :href="`https://id.twitch.tv/oauth2/authorize?client_id=qlfz8nlzzkq20jhl1xuawhza5xa3fm&redirect_uri=${config.playerClientUri}/twitch-auth-callback&response_type=token`"
+          <div v-if="config.twitchClientId">
+            <div v-if="!twitchData" class="twitch-icon--container__logged-out">
+              <a
+                :href="`https://id.twitch.tv/oauth2/authorize?client_id=${config.twitchClientId}&redirect_uri=${config.clientUrl}/twitch-auth-callback&response_type=token`"
+              >
+                <font-awesome-icon icon="fa-brands fa-twitch" class="twitch-icon" />
+              </a>
+            </div>
+            <div
+              v-else
+              class="twitch-icon--container__logged-in"
+              role="button"
+              tabindex="0"
+              @click="logOutOfTwitch"
             >
+              <img class="twitch-photo" width="20" :src="twitchData.photo" />
               <font-awesome-icon icon="fa-brands fa-twitch" class="twitch-icon" />
-            </a>
-          </div>
-          <div
-            v-else
-            class="twitch-icon--container__logged-in"
-            role="button"
-            tabindex="0"
-            @click="logOutOfTwitch"
-          >
-            <img class="twitch-photo" width="20" :src="twitchData.photo" />
-            <font-awesome-icon icon="fa-brands fa-twitch" class="twitch-icon" />
+            </div>
           </div>
         </div>
       </div>

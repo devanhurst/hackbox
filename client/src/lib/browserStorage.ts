@@ -1,9 +1,9 @@
 import { v4 as uuid } from "uuid";
 
-const USERID_KEY = "hackbox-player-userid";
-const USERNAME_KEY = "hackbox-player-username";
-const ROOMCODE_KEY = "hackbox-player-roomcode";
-const TWITCH_ACCESS_TOKEN = "hackbox-player-twitch-access-token";
+const USERID_KEY = "userid";
+const USERNAME_KEY = "username";
+const ROOMCODE_KEY = "roomcode";
+const TWITCH_ACCESS_TOKEN = "twitch-access-token";
 
 const getUserId = () => {
   let userId = window.localStorage.getItem(USERID_KEY);

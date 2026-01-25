@@ -1,10 +1,9 @@
 {
-  "name": "hackbox-player",
+  "name": "hackbox-client",
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "PORT=9001 vite",
     "build": "npm run type-check && npm run build-only",
-    "preview": "vite preview --port 4173",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.json --composite false"
   },

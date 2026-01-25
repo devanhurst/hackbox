@@ -2,6 +2,7 @@ import "dotenv/config";
 import "../instrument";
 import { db, rooms } from "../db";
 import { and, lt, eq } from "drizzle-orm";
+import * as Sentry from "@sentry/node";
 
 async function cleanupOldRooms() {
   try {
@@ -16,6 +17,8 @@ async function cleanupOldRooms() {
       .delete(rooms)
       .where(and(lt(rooms.createdAt, twentyFourHoursAgo), eq(rooms.persistent, false)))
       .returning({ code: rooms.code });
+
+    Sentry.metrics.count("rooms_deleted", deletedRooms.length);
 
     if (deletedRooms.length === 0) {
       console.log("No rooms to delete.");

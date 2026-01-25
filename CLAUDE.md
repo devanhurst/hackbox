@@ -22,7 +22,7 @@ npm run dev  # Runs all three services concurrently
 
 ```bash
 npm run dev:server    # Start server on port 9000
-npm run dev:player    # Start client on port 9001
+npm run dev:client    # Start client on port 9001
 npm run dev:docs      # Start docs on port 9002
 ```
 
@@ -158,19 +158,6 @@ cd server
 npx drizzle-kit generate  # Generate migrations
 npx drizzle-kit push      # Push schema changes
 ```
-
-## Environment Variables
-
-### Server
-
-- `PORT` - Server port (default: 9000 in dev)
-- `DATABASE_URL` - PostgreSQL connection string
-- `TWITCH_CLIENT_ID` - Client ID for authenticating users with Twitch
-- Sentry configuration for error tracking
-
-### Client
-
-Vite environment variables in `.env` files following Vite conventions (`VITE_` prefix).
 
 ## Important Patterns
 
