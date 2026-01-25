@@ -1,5 +1,5 @@
 {
-  "name": "hackbox-game-server",
+  "name": "hackbox-server",
   "version": "1.0.0",
   "description": "",
   "keywords": [],
@@ -10,7 +10,7 @@
     "build": "npm install && npx tsc && npm run sentry:sourcemaps",
     "start": "node dist/index.js",
     "dev": "PORT=9000 tsx --watch index.ts",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project game-server ./dist && sentry-cli sourcemaps upload --org hackbox --project game-server ./dist",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org hackbox --project server ./dist && sentry-cli sourcemaps upload --org hackbox --project server ./dist",
     "migrate": "npx drizzle-kit migrate"
   },
   "dependencies": {

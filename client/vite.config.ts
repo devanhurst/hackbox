@@ -1,8 +1,8 @@
 import { fileURLToPath, URL } from "url";
-import { sentryVitePlugin } from "@sentry/vite-plugin";
-import { defineConfig, loadEnv } from "vite";
-import vue from "@vitejs/plugin-vue";
-import vueJsx from "@vitejs/plugin-vue-jsx";
+import { sentryVitePlugin } from "./$node_modules/@sentry/vite-plugin/dist/types/index.js";
+import { defineConfig, loadEnv } from "./$node_modules/vite/dist/node/index.js";
+import vue from "./$node_modules/@vitejs/plugin-vue/dist/index.mjs";
+import vueJsx from "./$node_modules/@vitejs/plugin-vue-jsx/dist/index.mjs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       sentryVitePlugin({
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: "hackbox",
-        project: "player-client",
+        project: "client",
       }),
     ],
     resolve: {

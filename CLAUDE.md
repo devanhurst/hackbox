@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hackbox is a real-time multiplayer game platform with three main components in a monorepo structure:
 
-1. **player-client** - Vue 3 + TypeScript player interface (runs on mobile devices)
-2. **game-server** - Node.js + Express + Socket.io backend
+1. **client** - Vue 3 + TypeScript player interface (runs on mobile devices)
+2. **server** - Node.js + Express + Socket.io backend
 3. **admin** - Nuxt 3 admin panel for viewing stats
 
 ## Development Commands
@@ -21,25 +21,25 @@ npm run dev  # Runs all three services concurrently
 ### Individual services
 
 ```bash
-npm run dev:player    # Start player client (Vite dev server)
-npm run dev:server    # Start game server on port 9000
-npm run dev:docs      # Start docs and playground
+npm run dev:server    # Start server on port 9000
+npm run dev:player    # Start client on port 9001
+npm run dev:docs      # Start docs on port 9002
 ```
 
-### Player Client (player-client/)
+### Client (client/)
 
 ```bash
-cd player-client
+cd client
 npm run dev           # Start Vite dev server
 npm run build         # Type check + build for production
 npm run type-check    # Run TypeScript compiler check
 npm run test:unit     # Run Vitest unit tests
 ```
 
-### Game Server (game-server/)
+### Server (server/)
 
 ```bash
-cd game-server
+cd server
 npm run dev           # Watch mode: compile TS + auto-restart on port 9000
 npm run build         # Compile TypeScript + upload Sentry sourcemaps
 npm start             # Run compiled code from dist/
@@ -51,11 +51,11 @@ npm start             # Run compiled code from dist/
 
 The application uses Socket.io for bidirectional communication between players and hosts:
 
-1. **Players** connect via mobile devices → Socket.io → **Game Server** → **Host** (presentation layer)
-2. Host sends UI state updates → Game Server → Individual players
-3. Players send interactions (button clicks, text input) → Game Server → Host
+1. Players connect to **Client** via socket.io → **Server** → **Host** (game logic and presentation layer)
+2. **Host** sends UI state updates → **Server** → **Client**
+3. **Client** sends player interactions (button clicks, text input) → **Server** → **Host**
 
-### Game Server (game-server/)
+### Server (server/)
 
 **Entry Point**: `index.ts` - Sets up Express server, Socket.io, and Sentry monitoring
 
@@ -89,7 +89,7 @@ The application uses Socket.io for bidirectional communication between players a
 - **Host Updates**: Host sends state updates to specific players via `member.update` event
 - **Member Messages**: Players send events (`msg`, `change`) that get forwarded to host
 
-### Player Client (player-client/)
+### Client (client/)
 
 **Framework**: Vue 3 with Composition API, TypeScript, Vite
 
@@ -128,7 +128,7 @@ The application uses Socket.io for bidirectional communication between players a
 
 ### Shared Database Schema
 
-Both game-server and admin connect to the same PostgreSQL database:
+Both server and admin connect to the same PostgreSQL database:
 
 **Rooms Table**:
 
@@ -149,51 +149,35 @@ Both game-server and admin connect to the same PostgreSQL database:
 
 ## Database Management
 
-The game-server uses Drizzle ORM. Schema is defined in `game-server/db.ts`.
+The server uses Drizzle ORM. Schema is defined in `server/db.ts`.
 
-To run database migrations or updates, use drizzle-kit (installed in game-server):
+To run database migrations or updates, use drizzle-kit (installed in server):
 
 ```bash
-cd game-server
+cd server
 npx drizzle-kit generate  # Generate migrations
 npx drizzle-kit push      # Push schema changes
 ```
 
 ## Environment Variables
 
-### Game Server
+### Server
 
 - `PORT` - Server port (default: 9000 in dev)
 - `DATABASE_URL` - PostgreSQL connection string
+- `TWITCH_CLIENT_ID` - Client ID for authenticating users with Twitch
 - Sentry configuration for error tracking
 
-### Player Client
+### Client
 
 Vite environment variables in `.env` files following Vite conventions (`VITE_` prefix).
-
-### Admin Panel
-
-- `DATABASE_URL` - PostgreSQL connection string
-
-## Node Version
-
-This project requires Node.js >= 20.12.1 (see `.node-version` and `engines` in package.json files).
-
-## Testing
-
-Player client has Vitest configured:
-
-```bash
-cd player-client
-npm run test:unit  # Run unit tests with jsdom environment
-```
 
 ## Important Patterns
 
 ### Adding New Player Components
 
-1. Create component in `player-client/src/components/` (e.g., `NewComponent.vue`)
-2. Export from `player-client/src/components/index.ts`
+1. Create component in `client/src/components/` (e.g., `NewComponent.vue`)
+2. Export from `client/src/components/index.ts`
 3. Component receives `custom` prop with configuration from server
 4. Emit socket events via `inject("socket")` for user interactions
 5. Host receives events in `RoomService/hostSocket.ts` via `msg` or `change` events
@@ -216,4 +200,4 @@ socket.emit("member.update", {
 });
 ```
 
-Server processes in `game-server/RoomService/hostSocket.ts` and calls `roomService.updateMemberStates()`.
+Server processes in `server/RoomService/hostSocket.ts` and calls `roomService.updateMemberStates()`.

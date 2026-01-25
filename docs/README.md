@@ -45,15 +45,15 @@ It's preferred to run all hackbox services at once.
 npm run dev
 ```
 
-The game server is available at `http://localhost:9000`
-The player client is available at `http://localhost:9001`
+The server is available at `http://localhost:9000`
+The client is available at `http://localhost:9001`
 The documentation site will be available at `http://localhost:9002/`
 
 ## Using the Playground
 
 ### Testing on Real Devices
 
-1. Navigate to `/playground`
-2. Click "Create Room" to start a game server connection
+1. Navigate to `/docs/playground`
+2. Click "Create Room" to start a server connection
 3. Edit the payload in the builder/editor
 4. Changes automatically sync to connected devices=

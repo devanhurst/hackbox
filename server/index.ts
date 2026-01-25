@@ -29,4 +29,4 @@ const io = new Server(server, {
 io.on("connection", async (socket: Socket) => RoomService.join(socket, io));
 
 server.listen(port);
-console.log(`✨ Hackbox Game Server listening on port ${port}`);
+console.log(`📦 Hackbox listening on port ${port}...`);
