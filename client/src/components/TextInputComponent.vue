@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { Socket } from "socket.io-client";
+import type PartySocket from "partysocket";
 import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
 import { debounce, mergeProps } from "@/lib/helpers";
+import { emit } from "@/lib/sockets/playerSocket";
 
-const socket: Socket = inject("socket") as Socket;
+const socket = inject("socket") as PartySocket;
 
 let mountedAt: number;
 
@@ -36,7 +37,7 @@ const inputState = reactive({
 const submitWip = debounce(() => {
   if (inputState.submitted) return;
 
-  socket.emit("change", {
+  emit(socket, "change", {
     event: props.event,
     value: inputState.value,
     ms: Date.now() - mountedAt,
@@ -52,7 +53,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 const respond = () => {
   if (inputState.value.length === 0) return;
 
-  socket.emit("msg", {
+  emit(socket, "msg", {
     event: props.event,
     value: inputState.value,
     ms: Date.now() - mountedAt,

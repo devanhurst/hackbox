@@ -13,7 +13,7 @@ provide("socket", socket);
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 
 onBeforeRouteLeave(() => {
-  socket.disconnect();
+  socket.close();
 });
 </script>
 

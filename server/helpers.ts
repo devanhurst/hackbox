@@ -1,14 +1,7 @@
-import { randomUUID } from "node:crypto";
 import deepmerge from "@fastify/deepmerge";
-import type { Socket } from "socket.io";
-import type { Member } from "./models";
+import type { MemberState } from "./types";
 
-export const disconnect = (socket: Socket, message = "An error occurred.") => {
-  socket.emit("error", { message });
-  socket.disconnect(true);
-};
-
-const emptyMemberState = (): Member["state"] => ({
+const emptyMemberState = (): MemberState => ({
   theme: {
     header: {
       color: "#EEE",
@@ -56,11 +49,11 @@ export const defaultMemberState = (userName: string) => ({
   },
 });
 
-export const sanitizeState = (state: Partial<Member["state"]>) => {
+export const sanitizeState = (state: Partial<MemberState>) => {
   const merge = deepmerge();
-  const newState = merge(emptyMemberState(), state ?? {}) as Member["state"];
+  const newState = merge(emptyMemberState(), state ?? {}) as MemberState;
 
-  const randomId = randomUUID().substring(0, 3);
+  const randomId = crypto.randomUUID().substring(0, 3);
 
   if (!Array.isArray(newState.ui.main.components)) {
     newState.ui.main.components = [];

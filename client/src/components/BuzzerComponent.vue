@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, reactive } from "vue";
-import type { Socket } from "socket.io-client";
+import type PartySocket from "partysocket";
 import { mergeProps } from "@/lib/helpers";
+import { emit } from "@/lib/sockets/playerSocket";
 
 let mountedAt: number;
 const buzzerState = reactive({
   buzzed: false,
 });
 
-const socket = inject("socket") as Socket;
+const socket = inject("socket") as PartySocket;
 
 const { custom } = defineProps(["custom"]);
 const props = mergeProps(
@@ -31,7 +32,7 @@ const props = mergeProps(
 const respond = () => {
   buzzerState.buzzed = true;
   window.removeEventListener("keydown", handleKeydown);
-  socket.emit("msg", {
+  emit(socket, "msg", {
     event: props.event,
     ms: Date.now() - mountedAt,
     value: null,

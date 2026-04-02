@@ -1,5 +1,5 @@
 import config from "@/config";
-import { io, Socket } from "socket.io-client";
+import PartySocket from "partysocket";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";
@@ -19,38 +19,54 @@ const stateSkeleton = {
   },
 };
 
-const attachPlayerEvents = (socket: Socket, state: PlayerState, router: Router) => {
-  socket.on("disconnect", (reason: string) => {
-    const reconnectReasons = ["ping timeout", "transport close", "transport error"];
-    if (reconnectReasons.includes(reason)) return;
-    router.push("/");
+export const emit = (socket: PartySocket, type: string, payload?: unknown) => {
+  socket.send(JSON.stringify({ type, payload }));
+};
+
+const attachPlayerEvents = (socket: PartySocket, state: PlayerState, router: Router) => {
+  socket.addEventListener("close", (event) => {
+    // PartySocket auto-reconnects by default.
+    // If closed with a custom code (4000+), it was intentional — navigate away.
+    if (event.code >= 4000) {
+      router.push("/");
+    }
   });
 
-  socket.on("error", (payload: { message: string }) => {
-    alert(payload.message);
-  });
+  socket.addEventListener("message", (event) => {
+    const data = JSON.parse(event.data);
 
-  socket.on("reload", () => {
-    location.reload();
-  });
+    switch (data.type) {
+      case "error":
+        alert(data.payload.message);
+        break;
 
-  socket.on("state.member", (payload: PlayerStatePayload) => {
-    const newState = merge(cloneDeep(stateSkeleton), payload);
+      case "reload":
+        location.reload();
+        break;
 
-    processFonts(newState);
-    expandStatePresets(newState);
+      case "state.member": {
+        const payload = data.payload as PlayerStatePayload;
+        const newState = merge(cloneDeep(stateSkeleton), payload);
 
-    state.theme = newState.theme;
-    state.ui = newState.ui;
+        processFonts(newState);
+        expandStatePresets(newState);
+
+        state.theme = newState.theme;
+        state.ui = newState.ui;
+        break;
+      }
+    }
   });
 };
 
 const initializePlayerSocket = (router: Router) => {
-  const socket = io(config.serverUrl, {
+  const socket = new PartySocket({
+    host: config.partyHost,
+    party: "hackboxparty",
+    room: getRoomCode(),
     query: {
       userId: getUserId(),
       userName: getUserName(),
-      roomCode: getRoomCode(),
       metadata: JSON.stringify({
         twitchAccessToken: getTwitchAccessToken(),
       }),

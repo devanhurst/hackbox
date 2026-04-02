@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
-import type { Socket } from "socket.io-client";
+import type PartySocket from "partysocket";
 import { inject, onMounted, reactive } from "vue";
 import { mergeProps } from "@/lib/helpers";
+import { emit } from "@/lib/sockets/playerSocket";
 
-const socket: Socket = inject("socket") as Socket;
+const socket = inject("socket") as PartySocket;
 
 let mountedAt: number;
 
@@ -29,7 +30,7 @@ const state: State = reactive({
 const respond = () => {
   state.submitted = true;
 
-  socket.emit("msg", {
+  emit(socket, "msg", {
     event: props.event,
     value: props.value,
     ms: Date.now() - mountedAt,

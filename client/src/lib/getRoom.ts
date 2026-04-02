@@ -10,7 +10,9 @@ export const getRoom = async ({
 }): Promise<FindRoomResponse> => {
   if (roomCode.length !== 4) return { exists: false };
 
-  const response = await fetch(`${config.serverUrl}/rooms/${roomCode}?userId=${userId}`);
+  const response = await fetch(
+    `${config.partyHost}/parties/hackboxparty/${roomCode}?userId=${userId}`,
+  );
 
   return response.json();
 };

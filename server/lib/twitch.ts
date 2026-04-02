@@ -15,15 +15,17 @@ interface UsersResponse {
 
 export const authenticateWithTwitch = async (
   twitchAccessToken: string | undefined,
+  twitchClientId?: string,
 ): Promise<TwitchMetadata | undefined> => {
   if (!twitchAccessToken) return undefined;
+  const clientId = twitchClientId ?? "";
 
   try {
     const response = await fetch("https://api.twitch.tv/helix/users", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${twitchAccessToken}`,
-        "Client-Id": process.env.TWITCH_CLIENT_ID,
+        "Client-Id": clientId,
       },
     });
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
-import type { Socket } from "socket.io-client";
+import type PartySocket from "partysocket";
 import { inject, onMounted, reactive, watch } from "vue";
 import { debounce, mergeProps } from "@/lib/helpers";
+import { emit } from "@/lib/sockets/playerSocket";
 
-const socket: Socket = inject("socket") as Socket;
+const socket = inject("socket") as PartySocket;
 
 let mountedAt: number;
 
@@ -79,7 +80,7 @@ const submitWip = debounce(() => {
 
   const response = props.multiSelect ? state.selections : state.selections[0];
 
-  socket.emit("change", {
+  emit(socket, "change", {
     event: props.event,
     value: response,
     ms: Date.now() - mountedAt,
@@ -92,7 +93,7 @@ const submitResponse = () => {
   state.submitted = true;
   const response = props.multiSelect ? state.selections : state.selections[0];
 
-  socket.emit("msg", {
+  emit(socket, "msg", {
     event: props.event,
     value: response,
     ms: Date.now() - mountedAt,
