@@ -41,6 +41,8 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
   };
 
   socket.on("msg", async (payload: MemberPayload) => {
+    if (!payload) return;
+
     const message = {
       event: "msg",
       payload: {
@@ -64,6 +66,8 @@ export default async ({ socket, roomService }: RegisterMemberInput) => {
   });
 
   socket.on("change", async (payload: MemberPayload) => {
+    if (!payload) return;
+
     const message = {
       event: "change",
       payload: {
