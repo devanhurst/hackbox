@@ -122,12 +122,28 @@ Storage layout: `settings` (room metadata; a room "exists" iff present) and
 `m:${userId}` (per-member replay record). `online` is derived from live
 connections, never stored.
 
+### Done — `api/` Hono Worker
+
+The HTTP front door, ported from the legacy Express `server/api.ts`, preserving
+the public contract:
+
+- `api/src/index.ts` — `POST /rooms` → `{ ok, roomCode }`,
+  `GET /rooms/:roomCode` → `{ exists, twitchRequired }` (closed rooms hidden from
+  non-members), `GET /healthcheck` → `{ ok: true }`. Permissive CORS (`origin: *`).
+- `api/src/relay.ts` — `generateRoomCode` (ported verbatim) + a `RelayClient`
+  that talks to the relay over a **service binding**, hitting
+  `/parties/main/<code>/init` (allocate, retry on `409` collision) and
+  `/parties/main/<code>` (existence/membership probe).
+- `api/wrangler.toml` (service binding `RELAY` → `hackbox-relay`),
+  `api/package.json`, `api/tsconfig.json`. `tsc --noEmit` passes.
+
+Room codes are allocated entirely in the api Worker: generate a code, ask the
+relay DO to `init`; a `409` means taken, so retry (up to 8 attempts). No shared
+registry, no D1 — the DO's own existence is the source of truth.
+
 ### Remaining
 
-1. **`api/` Hono Worker** — `POST /rooms` (port `generateRoomCode`, allocate via
-   DO `init` + retry on 409) and `GET /rooms/:code`. Preserves the public
-   `POST https://app.hackbox.ca/rooms` contract.
-2. **`@hackbox/client` SDK** — wraps `partysocket`, exposes the legacy
+1. **`@hackbox/client` SDK** — wraps `partysocket`, exposes the legacy
    `emit`/`on` surface, handles keepalive pings and fatal close codes (≥4000 →
    stop reconnecting + surface `error`). Published for third-party hosts.
 3. **Client cutover** — rewrite `client/src/lib/sockets/playerSocket.ts` onto the

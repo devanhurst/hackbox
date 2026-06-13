@@ -153,14 +153,18 @@ export class Room extends Server<Env> {
     }
 
     // GET — existence + status probe (replaces `Room.find`). Used by the client
-    // before connecting and by the api Worker's GET /rooms/:code.
+    // before connecting and by the api Worker's GET /rooms/:code. When a
+    // `userId` is supplied, `isMember` reports whether that user has a record in
+    // this room — the api Worker needs it to hide closed rooms from non-members.
     if (req.method === "GET") {
+      const userId = url.searchParams.get("userId");
       return Response.json(
         {
           exists: this.settings !== null,
           closed: this.settings?.closed ?? false,
           twitchRequired: this.settings?.twitchRequired ?? false,
           hasHost: this.findHostConnection() !== null,
+          isMember: userId ? this.members.has(userId) : false,
         },
         { headers: corsHeaders({ "Cache-Control": "no-store" }) },
       );
