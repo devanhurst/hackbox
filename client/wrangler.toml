@@ -9,11 +9,14 @@ workers_dev = true
 # The api (hackbox.ca/api/*) and relay (hackbox.ca/r/*) routes are more
 # specific and take precedence, so this catch-all serves only the SPA.
 
-# Build the SPA before deploying. Run `wrangler deploy` from this directory
-# (client/) so the command resolves against this package. `build-only` skips the
-# vue-tsc type-check (run separately in CI) to keep deploys fast.
+# Install deps and build the SPA before deploying. Workers Builds runs
+# `npx wrangler deploy -c client/wrangler.toml` from the repo root with no
+# install step, so cd into client/ first, install (including devDeps — vite is a
+# devDep, and CI may set NODE_ENV=production), then build. `build-only` skips the
+# vue-tsc type-check to keep deploys fast. Output lands in client/dist, which
+# [assets] below points at (relative to this config file).
 [build]
-command = "npm run build-only"
+command = "cd client && npm install --include=dev && npm run build-only"
 
 # Vite's default output directory.
 [assets]
