@@ -14,18 +14,26 @@ export default (app: Express) => {
 
     const room = await Room.find(roomCode);
 
-    if (!room) return { exists: false };
+    if (!room) return res.json({ exists: false });
     if (room.closed) {
       const existingMember = await Member.find({ roomCode, userId });
-      if (!existingMember) return { exists: false };
+      if (!existingMember) return res.json({ exists: false });
     }
 
     res.json({ exists: true, twitchRequired: room.twitchRequired });
   });
 
   app.post("/rooms", async (req, res) => {
+    const hostId = req.body.hostId as string | undefined;
+    if (!hostId) {
+      return res.status(400).json({
+        ok: false,
+        error: "hostId is required",
+      } as RoomCreationResponse);
+    }
+
     const newRoom = await Room.create({
-      hostId: req.body.hostId,
+      hostId,
       twitchRequired: !!req.body.twitchRequired || false,
     });
 
