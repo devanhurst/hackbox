@@ -56,6 +56,24 @@ export const defaultMemberState = (userName: string) => ({
   },
 });
 
+// Postgres rejects NUL bytes (\u0000) in text/jsonb values, so a host- or
+// member-supplied string containing one makes `members.state` updates fail
+// (SERVER-3QY). Strip them from every string in a value before persisting.
+export const stripNullBytes = <T>(value: T): T => {
+  if (typeof value === "string") {
+    return value.replaceAll("\u0000", "") as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripNullBytes) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [key, stripNullBytes(val)]),
+    ) as T;
+  }
+  return value;
+};
+
 export const sanitizeState = (state: Partial<Member["state"]>) => {
   const merge = deepmerge();
   const newState = merge(emptyMemberState(), state ?? {}) as Member["state"];

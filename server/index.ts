@@ -16,8 +16,9 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // Reject malformed percent-encoded URLs (e.g. "/rooms/abc%") with a 400 before
-// they reach the router. Express 5 throws a URIError while decoding such params,
-// which would otherwise crash the process via Sentry's stack-trace parser.
+// they reach the router, since Express 5 throws a URIError while decoding such
+// params. (Note: this is unrelated to the fatal Sentry crash — that originates
+// in the SDK's stack-trace parser and is handled in instrument.ts.)
 app.use((req, res, next) => {
   try {
     decodeURIComponent(req.path);
@@ -40,11 +41,16 @@ const io = new Server(server, {
 
 io.on("connection", async (socket: Socket) => RoomService.join(socket, io));
 
-// Backstop: never let an unhandled rejection take the whole server down.
-// Sentry's stack-trace parser can throw URIError while reporting an error,
-// which surfaces here as an unhandled rejection on Render.
+// Backstop: keep async faults from taking the whole server down. The original
+// fatal (SERVER-3QX) arrived as an uncaughtException — Sentry's stack-trace
+// parser threw a URIError while reporting another error — so we must handle that
+// mechanism too, not just rejections.
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
 });
 
 server.listen(port);

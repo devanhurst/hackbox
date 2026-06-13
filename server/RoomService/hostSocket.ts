@@ -16,12 +16,14 @@ export default async ({ socket, roomService }: RegisterHostInput) => {
   socket.data.type = "host";
   socket.data.userId = socket.handshake.query.userId;
 
-  socket.on("member.update", async (payload: HostPayload) =>
-    roomService.updateMemberStates({
+  socket.on("member.update", async (payload: HostPayload) => {
+    if (!payload) return;
+
+    return roomService.updateMemberStates({
       recipients: [payload.to].flat(),
       newState: payload.data,
-    }),
-  );
+    });
+  });
 
   socket.on("reload", () => {
     roomService.sendToMembers({ event: "reload" });

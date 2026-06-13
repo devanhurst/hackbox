@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import { defaultMemberState, disconnect, sanitizeState } from "../helpers";
+import { defaultMemberState, disconnect, sanitizeState, stripNullBytes } from "../helpers";
 import { Member, Room } from "../models";
 import initializeHostSocket from "./hostSocket";
 import initializeMemberSocket from "./memberSocket";
@@ -15,7 +15,16 @@ export class RoomService {
 
   static async join(socket: Socket, server: Server) {
     try {
-      const { roomCode } = socket.handshake.query;
+      // Scrub NUL bytes from all handshake values up front. Everything
+      // downstream (roomCode, userId, userName, metadata, for both host and
+      // member paths) reads from here, and Postgres rejects NUL bytes in the
+      // columns these end up in (SERVER-3QY).
+      const { query } = socket.handshake;
+      for (const key of Object.keys(query)) {
+        query[key] = stripNullBytes(query[key]);
+      }
+
+      const { roomCode } = query;
 
       const room = await Room.find(roomCode as string);
       if (!room) return disconnect(socket, "This room does not exist.");
