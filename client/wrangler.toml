@@ -1,0 +1,30 @@
+name = "hackbox-client"
+main = "worker/index.js"
+compatibility_date = "2026-04-09"
+workers_dev = true
+
+# Serve the SPA from the apex. Bind hackbox.ca directly to this Worker via
+# Cloudflare DNS so it survives Worker renames:
+#   routes = [{ pattern = "hackbox.ca/*", zone_name = "hackbox.ca" }]
+# The api (hackbox.ca/api/*) and relay (hackbox.ca/r/*) routes are more
+# specific and take precedence, so this catch-all serves only the SPA.
+
+# Build the SPA before deploying. Run `wrangler deploy` from this directory
+# (client/) so the command resolves against this package. `build-only` skips the
+# vue-tsc type-check (run separately in CI) to keep deploys fast.
+[build]
+command = "npm run build-only"
+
+# Vite's default output directory.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true

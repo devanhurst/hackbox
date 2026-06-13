@@ -1,0 +1,29 @@
+name = "hackbox-relay"
+main = "src/index.ts"
+compatibility_date = "2026-04-09"
+workers_dev = true
+
+# Serve the relay under the apex at hackbox.ca/r/* — a single static path
+# prefix, not a `relay.` subdomain (those get reset by some users' SNI-filtering
+# middleboxes; the apex is the durable fix). The WS endpoint is the minimal
+# wss://hackbox.ca/r/<code>; routing is handled by hand in src/index.ts and
+# matched by the client SDK's partysocket basePath.
+#   routes = [{ pattern = "hackbox.ca/r/*", zone_name = "hackbox.ca" }]
+
+[durable_objects]
+bindings = [{ name = "Main", class_name = "Room" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# TWITCH_CLIENT_ID is a secret, set via `wrangler secret put TWITCH_CLIENT_ID`
+# (not committed here). The DO reads it from `env` to authenticate members.
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, reactive } from "vue";
-import type { Socket } from "socket.io-client";
+import type { HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { mergeProps } from "@/lib/helpers";
 
 let mountedAt: number;
@@ -8,7 +8,7 @@ const buzzerState = reactive({
   buzzed: false,
 });
 
-const socket = inject("socket") as Socket;
+const socket = inject("socket") as HackboxSocket;
 
 const { custom } = defineProps(["custom"]);
 const props = mergeProps(

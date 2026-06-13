@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
-import type { Socket } from "socket.io-client";
+import type { HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { inject, onMounted, reactive } from "vue";
 import { mergeProps } from "@/lib/helpers";
 
-const socket: Socket = inject("socket") as Socket;
+const socket: HackboxSocket = inject("socket") as HackboxSocket;
 
 let mountedAt: number;
 

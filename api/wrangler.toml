@@ -1,0 +1,24 @@
+name = "hackbox-api"
+main = "src/index.ts"
+compatibility_date = "2026-04-09"
+workers_dev = true
+
+# Serve the HTTP API under the apex at hackbox.ca/api/* — a path prefix, not an
+# `api.` subdomain (subdomains get reset by some users' SNI-filtering middleboxes).
+# Routes alongside the relay (hackbox.ca/r/*) and the client (apex catch-all).
+#   routes = [{ pattern = "hackbox.ca/api/*", zone_name = "hackbox.ca" }]
+
+# Service binding to the relay Worker. The api Worker calls the relay's HTTP
+# surface (/parties/main/<code> and .../init) to allocate and probe rooms; all
+# room state lives in the relay's Durable Objects.
+[[services]]
+binding = "RELAY"
+service = "hackbox-relay"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
