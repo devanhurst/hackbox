@@ -3,11 +3,11 @@ main = "worker/index.js"
 compatibility_date = "2026-04-09"
 workers_dev = true
 
-# Serve the SPA from the apex. Bind hackbox.ca directly to this Worker via
-# Cloudflare DNS so it survives Worker renames:
-#   routes = [{ pattern = "hackbox.ca/*", zone_name = "hackbox.ca" }]
-# The api (hackbox.ca/api/*) and relay (hackbox.ca/r/*) routes are more
-# specific and take precedence, so this catch-all serves only the SPA.
+# Serve the SPA from the apex as a Custom Domain (auto-managed DNS + cert, and it
+# survives Worker renames). The api (hackbox.ca/api/*) and relay (hackbox.ca/r/*)
+# routes are more specific and take precedence, so this catch-all serves only the
+# SPA for everything else.
+routes = [{ pattern = "hackbox.ca", custom_domain = true }]
 
 # Build the SPA before deploying. With this Worker's root directory set to
 # client/ in Workers Builds, dependencies (including devDeps like vite) are
