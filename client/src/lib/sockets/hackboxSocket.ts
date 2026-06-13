@@ -1,20 +1,19 @@
 import PartySocket from "partysocket";
 
-// @hackbox/client — the connection SDK for hackbox hosts and players.
+// The hackbox player client's connection to the relay.
 //
-// It wraps a raw-WebSocket `partysocket` connection to the hackbox relay and
-// re-exposes the *exact* event surface the legacy socket.io API had, so
-// existing integrations migrate by swapping their connection import — not their
-// logic. The application protocol (event names + payloads documented at
-// app.hackbox.ca/docs) is unchanged; only the transport moved from
-// socket.io/engine.io to raw WebSocket (the relay is a Cloudflare Durable
-// Object, which speaks raw WS).
+// It wraps a raw-WebSocket `partysocket` connection and re-exposes the same
+// event surface the old socket.io client had (`on`/`emit` over a
+// `{ type, payload }` envelope), so the rest of the client (playerSocket.ts and
+// the components) was unaffected by the socket.io -> raw-WebSocket transport
+// move. The relay is a Cloudflare Durable Object, which speaks raw WS.
 //
-//   Host   : on("state.host"|"msg"|"change"), emit("member.update"|"reload")
-//   Player : on("state.member"|"reload"|"error"|"disconnect"), emit("msg"|"change")
+// This used to be a standalone `@hackbox/client` package intended for host
+// integrators too, but hackbox hosts are Unity (see hackbox-unity), not JS, so
+// it now lives here as the player client's connector. Host integrations speak
+// the raw `{ type, payload }` protocol directly — see docs/getting-started.
 //
-// Identity is derived server-side from `userId`: connect with `userId` equal to
-// the room's hostId to be the host, anything else to be a player.
+//   Player: on("state.member"|"reload"|"error"|"disconnect"), emit("msg"|"change")
 
 // Keepalive ping interval. Browsers never send WebSocket pings on their own and
 // partysocket has no built-in heartbeat, so an idle socket can be silently
@@ -25,10 +24,7 @@ import PartySocket from "partysocket";
 const PING_INTERVAL_MS = 25_000;
 const KEEPALIVE_PING = "ping";
 
-// WebSocket.OPEN, hard-coded so the SDK doesn't depend on a global `WebSocket`
-// (third-party hosts may run under Node, where partysocket polyfills the
-// transport but `WebSocket` isn't necessarily global).
-const WS_OPEN = 1;
+const WS_OPEN = 1; // WebSocket.OPEN
 
 // The relay is served at hackbox.ca/r/<code> — a single static path prefix on
 // the apex (not a `relay.` subdomain, which some users' wifi middleboxes
@@ -43,13 +39,8 @@ const RELAY_PATH_PREFIX = "r";
 // with one of these.
 const FATAL_CLOSE_THRESHOLD = 4000;
 
-// Reasons the legacy client treats as transient (reconnect, stay put) rather
-// than terminal (navigate home). Preserved so existing `on("disconnect")`
-// handlers behave identically.
-const RECONNECT_REASONS = new Set(["ping timeout", "transport close", "transport error"]);
-
 export interface HackboxSocketOptions {
-  /** Relay host, e.g. "app.hackbox.ca" (prod) or "localhost:1999" (dev). */
+  /** Relay host, e.g. "hackbox.ca" (prod) or "localhost:1999" (dev). */
   host: string;
   /** 4-character room code. */
   roomCode: string;
@@ -68,7 +59,7 @@ export interface HackboxSocket {
   on(event: string, cb: Listener): () => void;
   /** Unsubscribe a previously-registered listener. */
   off(event: string, cb: Listener): void;
-  /** Send an event to the relay (`member.update`, `reload`, `msg`, `change`). */
+  /** Send an event to the relay (`msg`, `change`). */
   emit(event: string, payload?: unknown): void;
   /** Permanently close the connection (no reconnect). */
   close(): void;
@@ -159,7 +150,7 @@ export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocke
       fatal = true;
       // Halt partysocket's automatic reconnect — the server doesn't want us.
       socket.close();
-      // A reason outside RECONNECT_REASONS signals "terminal" to the client.
+      // A reason outside the transient set signals "terminal" to the client.
       emitLocal("disconnect", event.reason || "io server disconnect");
       return;
     }
@@ -205,5 +196,3 @@ export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocke
     raw: socket,
   };
 }
-
-export { RECONNECT_REASONS };

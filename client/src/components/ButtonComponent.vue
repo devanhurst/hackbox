@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ChoiceButton from "./Choices/ChoiceButton.vue";
-import type { HackboxSocket } from "@hackbox/client";
+import type { HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { inject, onMounted, reactive } from "vue";
 import { mergeProps } from "@/lib/helpers";
 

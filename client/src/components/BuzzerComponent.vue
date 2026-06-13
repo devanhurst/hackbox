@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, reactive } from "vue";
-import type { HackboxSocket } from "@hackbox/client";
+import type { HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { mergeProps } from "@/lib/helpers";
 
 let mountedAt: number;

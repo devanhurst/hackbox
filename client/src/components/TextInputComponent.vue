@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HackboxSocket } from "@hackbox/client";
+import type { HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
 import { debounce, mergeProps } from "@/lib/helpers";
 

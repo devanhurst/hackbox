@@ -1,5 +1,5 @@
 import config from "@/config";
-import { createHackboxSocket, type HackboxSocket } from "@hackbox/client";
+import { createHackboxSocket, type HackboxSocket } from "@/lib/sockets/hackboxSocket";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";

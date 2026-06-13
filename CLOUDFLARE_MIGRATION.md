@@ -37,17 +37,25 @@ Durable Objects speak **raw WebSocket**, not the socket.io/engine.io protocol.
 So moving to Cloudflare is necessarily a **transport-level breaking change** for
 any host/player using the socket.io client library.
 
-The mitigation: the break is only at the *transport* layer. The **application
-protocol** — the event names and payloads (`member.update`, `reload`, `msg`,
-`change`, `state.host`, `state.member`) — is preserved byte-for-byte. A thin
-`@hackbox/client` SDK wraps `partysocket` and exposes the same
-`emit(event, payload)` / `on(event, cb)` surface, so third-party host code
-changes one line (the connection import), not its logic.
+The softening factor: the break is only at the *transport* layer. The
+**application protocol** — the event names and payloads (`member.update`,
+`reload`, `msg`, `change`, `state.host`, `state.member`) — is preserved
+byte-for-byte. Integrations re-point their connection at the raw-WebSocket relay
+and exchange `{ type, payload }` envelopes; their game logic is untouched.
+
+In practice hackbox hosts are **Unity games** using the
+[hackbox-unity](https://github.com/devanhurst/hackbox-unity) package (C#), not
+JavaScript. So the real host migration is updating that package to the raw-WS
+transport — see [`HACKBOX_UNITY_MIGRATION.md`](./HACKBOX_UNITY_MIGRATION.md).
+The web **player client** gets its own small connector (`createHackboxSocket` in
+`client/src/lib/sockets/hackboxSocket.ts`) that wraps `partysocket` and keeps the
+legacy `on`/`emit` surface, so the rest of the Vue client was unaffected.
 
 ## Locked decisions
 
-1. **No socket.io compatibility shim.** Clean break to raw WebSocket via the
-   `@hackbox/client` SDK that preserves the event-level protocol.
+1. **No socket.io compatibility shim.** Clean break to raw WebSocket. The web
+   player client uses a `partysocket` wrapper that preserves the event-level
+   protocol; Unity hosts migrate via hackbox-unity.
 2. **DO-only. No D1.** Room codes are allocated by probing the target DO for
    existence and retrying on collision; live state lives in DO storage. No
    relational database is introduced.
@@ -107,7 +115,8 @@ relay  -> member: state.member <MemberState>, reload, error { message }
 | --- | --- | --- |
 | Express + `node:http` (`server/index.ts`) | No Node HTTP in Workers | Hono Worker + DO `fetch` |
 | socket.io **server** | Protocol unsupported on DO | partyserver raw WS |
-| socket.io-client + 3rd-party hosts | engine.io transport | `partysocket` via `@hackbox/client` SDK |
+| socket.io-client (web player) | engine.io transport | `partysocket` wrapper (`client/.../hackboxSocket.ts`) |
+| socket.io hosts (hackbox-unity, C#) | engine.io transport | raw-WS `{ type, payload }` — see HACKBOX_UNITY_MIGRATION.md |
 | `RoomService` (instance per room) | — already room-scoped | `Room` DO (1:1) |
 | `members.state/online/metadata` via `pg` | TCP driver banned | DO storage + connection-derived presence |
 | `Room.create` / `generateRoomCode` | — | api Worker + DO `init` (probe-and-retry) |
@@ -158,50 +167,56 @@ Room codes are allocated entirely in the api Worker: generate a code, ask the
 relay DO to `init`; a `409` means taken, so retry (up to 8 attempts). No shared
 registry, no D1 — the DO's own existence is the source of truth.
 
-### Done — `@hackbox/client` SDK
-
-The connection SDK both the hackbox client and third-party hosts use. It wraps a
-`partysocket` raw-WebSocket connection and re-exposes the **exact** legacy
-socket.io event surface, so integrators migrate by swapping their connection
-import, not their logic.
-
-- `sdk/src/index.ts` — `createHackboxSocket({ host, roomCode, userId, userName?,
-  metadata? })` → `{ on, off, emit, close, connected, raw }`. Frames are the
-  `{ type, payload }` envelope; `on(type, cb)` ⇄ `cb(payload)`,
-  `emit(type, payload)` ⇄ send. Includes the 25s keepalive ping (matching the
-  relay's edge auto-response), fatal-close handling (≥4000 → stop reconnecting,
-  surface the preceding `error`, emit a terminal `disconnect`), and the legacy
-  transient-reason set so existing `on("disconnect")` handlers behave the same.
-- `sdk/package.json` (`@hackbox/client`, `partysocket` dep, `tsc` build →
-  ESM + d.ts), `sdk/tsconfig.json`, `sdk/README.md` (host/player usage + a
-  socket.io migration table). `tsc` builds and type-checks clean.
-
 ### Done — client cutover + static-assets Worker
 
-The Vue client now talks to the new backend through the SDK, and ships as a
-Cloudflare static-assets Worker.
+The Vue **player client** talks to the new backend through a small `partysocket`
+wrapper, and ships as a Cloudflare static-assets Worker.
 
+- `client/src/lib/sockets/hackboxSocket.ts` — `createHackboxSocket({ host,
+  roomCode, userId, userName?, metadata? })` → `{ on, off, emit, close,
+  connected, raw }`. Frames are the `{ type, payload }` envelope; `on(type, cb)`
+  ⇄ `cb(payload)`, `emit(type, payload)` ⇄ send. Includes the 25s keepalive ping
+  (matching the relay's edge auto-response) and fatal-close handling (≥4000 →
+  stop reconnecting, surface the preceding `error`, emit a terminal
+  `disconnect`). (This began as a standalone `@hackbox/client` package; with no
+  external JS consumers — hackbox hosts are Unity — it was folded into the client
+  to drop the extra package, build, and `file:` wiring.)
 - `client/src/lib/sockets/playerSocket.ts` — rewritten onto `createHackboxSocket`
   (was `socket.io-client`). Event handlers (`state.member`, `reload`, `error`,
-  `disconnect`) are unchanged; the SDK preserves the transient-vs-terminal
-  disconnect semantics.
+  `disconnect`) are unchanged.
 - `client/src/components/*.vue` (6 socket consumers) — inject type swapped from
   socket.io's `Socket` to `HackboxSocket`; `.emit(...)` calls unchanged.
 - `client/src/config/index.ts` — `serverUrl` split into `apiUrl`
   (`…/api`) and `relayHost` (apex host for the WS). `getRoom.ts` uses `apiUrl`.
-- `client/package.json` — drops `socket.io-client`, adds `@hackbox/client`
-  (`file:../sdk`).
+- `client/package.json` — drops `socket.io-client`, adds `partysocket`.
 - `client/worker/index.js` + `client/wrangler.toml` — static-assets Worker
   serving Vite's `dist/` with SPA fallback (and a 404 guard for stale hashed
-  chunks). `vue-tsc` type-checks and `vite build` succeeds with the SDK bundled.
+  chunks). `vue-tsc` type-checks and `vite build` succeeds.
+
+### Done — public docs
+
+`docs/content/1.docs/1.getting-started.md` rewritten protocol-first: create rooms
+at `https://hackbox.ca/api/rooms`, connect to `wss://hackbox.ca/r/<code>`, and
+exchange `{ type, payload }` envelopes. Leads with the language-agnostic raw-WS
+protocol and points Unity hosts at hackbox-unity; includes a socket.io migration
+note.
+
+### Done — hackbox-unity migration plan
+
+[`HACKBOX_UNITY_MIGRATION.md`](./HACKBOX_UNITY_MIGRATION.md) — the change plan for
+the C#/Unity host package (the real host-migration path). The package's existing
+`ISocketIO` seam means only the transport layer + a few `Host.cs` lines change;
+recommends adopting `NativeWebSocket` and deleting the bundled socket.io client.
 
 ### Remaining
 
-1. **Cutover & deprecation** — stand up the Workers, point `hackbox.ca` DNS at
-   the client Worker and add the `hackbox.ca/api/*` + `hackbox.ca/r/*`
-   routes, update the public docs with the SDK + a transport-migration note, run
-   the old Render service read-only during a deprecation window, then
-   decommission Render + Postgres.
+1. **hackbox-unity** — implement the [migration plan](./HACKBOX_UNITY_MIGRATION.md)
+   in the C#/Unity host package and cut a (breaking) release; existing games
+   update to it.
+2. **Cutover & deprecation** — stand up the Workers, point `hackbox.ca` DNS at
+   the client Worker and add the `hackbox.ca/api/*` + `hackbox.ca/r/*` routes,
+   run the old Render service read-only during a deprecation window (long enough
+   for Unity games to update), then decommission Render + Postgres.
 
 ## Convergence with jparty
 
@@ -209,15 +224,16 @@ The replay cache is the only thing the hackbox relay adds over jparty's. It is
 generic — "remember the last state addressed to each recipient, replay on
 reconnect" — and would be a sound addition to the jparty relay too. The
 remaining hackbox-specific logic (the `state.host` roster, targeted
-`member.update`, server-side Twitch auth) exists only to keep the third-party
-host API stable; it could move client-side if hackbox ever owned its hosts, at
-which point the two relays would be essentially identical.
+`member.update`, server-side Twitch auth) exists only to keep the host API
+stable; it could move client-side if hackbox ever owned its hosts, at which
+point the two relays would be essentially identical.
 
 ## Risks / open items
 
-- **Third-party breakage** is the only sharp edge — mitigated by the SDK, but it
-  is a versioned public-API change. How long the deprecation window needs to be
-  depends on how many external hosts exist in the wild.
+- **Host breakage** is the only sharp edge. The transport change is a breaking,
+  versioned API change for hosts — there is no compatibility shim. In practice
+  that means shipping the hackbox-unity update and giving existing games a
+  deprecation window to adopt it before Render is turned off.
 - **No socket.io polling fallback** on raw WS. Fine for modern clients on
   Cloudflare's edge; worth noting for very restrictive networks.
 - **Async Twitch auth in `onConnect`** runs before the connection is marked
