@@ -3,6 +3,14 @@ main = "src/index.ts"
 compatibility_date = "2026-04-09"
 workers_dev = true
 
+# Install this worker's dependencies before wrangler bundles `main`. Workers
+# Builds runs `npx wrangler deploy -c relay/wrangler.toml` from the repo root
+# with no install step, so without this esbuild can't resolve `partyserver` /
+# `@fastify/deepmerge`. `wrangler deploy` runs this command (from the repo root)
+# automatically. The deps live in relay/, not the root, so cd in first.
+[build]
+command = "cd relay && npm install"
+
 # Serve the relay under the apex at hackbox.ca/r/* — a single static path
 # prefix, not a `relay.` subdomain (those get reset by some users' SNI-filtering
 # middleboxes; the apex is the durable fix). The WS endpoint is the minimal
