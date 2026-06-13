@@ -1,5 +1,5 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
-import { defaultMemberState, sanitizeState, type MemberState } from "./roomState";
+import { defaultMemberState, sanitizeState, stripNullBytes, type MemberState } from "./roomState";
 import { authenticateWithTwitch, type TwitchMetadata } from "./twitch";
 
 // ---------------------------------------------------------------------------
@@ -182,9 +182,12 @@ export class Room extends Server<Env> {
   // params and starts listening, so existing third-party hosts only need to
   // swap their transport library, not change their flow.
   async onConnect(connection: Connection<ConnState>, ctx: ConnectionContext) {
+    // Scrub NUL bytes from handshake values up front, mirroring the legacy
+    // RoomService.join (SERVER-3QY). Everything downstream — userId, userName,
+    // and the parsed metadata — reads from these.
     const url = new URL(ctx.request.url);
-    const userId = url.searchParams.get("userId") ?? "";
-    const userName = url.searchParams.get("userName") ?? "";
+    const userId = stripNullBytes(url.searchParams.get("userId") ?? "");
+    const userName = stripNullBytes(url.searchParams.get("userName") ?? "");
 
     if (!this.settings) {
       this.fail(connection, "This room does not exist.");
@@ -220,7 +223,7 @@ export class Room extends Server<Env> {
 
     let handshakeMetadata: { twitchAccessToken?: string } = {};
     try {
-      handshakeMetadata = JSON.parse(url.searchParams.get("metadata") ?? "{}");
+      handshakeMetadata = stripNullBytes(JSON.parse(url.searchParams.get("metadata") ?? "{}"));
     } catch {
       handshakeMetadata = {};
     }

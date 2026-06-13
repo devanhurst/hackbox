@@ -36,6 +36,26 @@ export interface MemberState {
   presets?: { [key: string]: Component };
 }
 
+// Strip NUL bytes (U+0000) from every string in a value. Carried over from the
+// legacy server (SERVER-3QY): Postgres rejected NUL bytes in the text/jsonb
+// columns that handshake input flowed into. DO storage tolerates them, but the
+// guard is kept so a host/member-supplied NUL can't corrupt persisted state or
+// leak into downstream consumers that do choke on it.
+export const stripNullBytes = <T>(value: T): T => {
+  if (typeof value === "string") {
+    return value.replaceAll("\u0000", "") as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripNullBytes) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [key, stripNullBytes(val)]),
+    ) as T;
+  }
+  return value;
+};
+
 // The blank canvas every member state is merged onto. Mirrors
 // `emptyMemberState()` in the legacy server's helpers.ts.
 const emptyMemberState = (): MemberState => ({
