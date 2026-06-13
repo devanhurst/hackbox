@@ -2,16 +2,16 @@
 // room state (in its `Room` Durable Object), so the api Worker is a thin HTTP
 // front door: it allocates a unique code and asks the relay to initialise the
 // room, then answers existence probes. Requests go through the relay Worker's
-// fetch handler, which resolves the DO by name from the `/rooms/<code>` path so
+// fetch handler, which resolves the DO by name from the `/r/<code>` path so
 // `this.name` inside the DO is the room code.
 
 // The host of this URL is irrelevant over a service binding (only the path is
 // routed); a stable placeholder keeps the requests readable in logs. The
-// `/rooms/<code>` path must match the relay Worker's router (and the client
-// SDK's partysocket basePath).
+// `/r/<code>` path must match the relay Worker's router (and the client SDK's
+// partysocket basePath).
 const RELAY_ORIGIN = "https://hackbox-relay";
 
-const roomPath = (code: string) => `${RELAY_ORIGIN}/rooms/${code}`;
+const roomPath = (code: string) => `${RELAY_ORIGIN}/r/${code}`;
 
 // 4-character consonant code, ported verbatim from the legacy
 // `server/models/Room.ts:generateRoomCode()`.

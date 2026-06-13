@@ -69,7 +69,7 @@ repo, so there is nothing to migrate there):
 
 `POST /rooms` lives in the api Worker (Hono) rather than the relay because the
 relay's path is reserved for room sockets; the api Worker generates a code,
-calls the room's DO `POST /rooms/<code>/init`, and retries on a `409` collision.
+calls the room's DO `POST /r/<code>/init`, and retries on a `409` collision.
 
 ### Routing: path prefixes on the apex, not subdomains
 
@@ -80,10 +80,10 @@ jparty adopted. A path prefix is the minimum a Worker needs to be routable
 (Cloudflare routes by path, not by the WebSocket `Upgrade` header, and the apex
 itself is the SPA), so the relay can't be path-less — but it is kept minimal at
 one static segment. Rather than partyserver's default three-segment
-`/parties/:party/:room`, the relay Worker routes `/rooms/<code>` by hand (via
+`/parties/:party/:room`, the relay Worker routes `/r/<code>` by hand (via
 `getServerByName`) and the SDK points `partysocket` there with `basePath`:
 
-- `hackbox.ca/rooms/*` → `hackbox-relay` (WS at the minimal `wss://hackbox.ca/rooms/<code>`)
+- `hackbox.ca/r/*` → `hackbox-relay` (WS at the minimal `wss://hackbox.ca/r/<code>`)
 - `hackbox.ca/api/*` → `hackbox-api` (`POST /api/rooms`, `GET /api/rooms/:code`)
 - `hackbox.ca/*` → `hackbox-client` (SPA; the two prefixes above are more specific
   and take precedence)
@@ -149,8 +149,8 @@ the public contract:
   non-members), `GET /healthcheck` → `{ ok: true }`. Permissive CORS (`origin: *`).
 - `api/src/relay.ts` — `generateRoomCode` (ported verbatim) + a `RelayClient`
   that talks to the relay over a **service binding**, hitting
-  `/rooms/<code>/init` (allocate, retry on `409` collision) and
-  `/rooms/<code>` (existence/membership probe).
+  `/r/<code>/init` (allocate, retry on `409` collision) and
+  `/r/<code>` (existence/membership probe).
 - `api/wrangler.toml` (service binding `RELAY` → `hackbox-relay`),
   `api/package.json`, `api/tsconfig.json`. `tsc --noEmit` passes.
 
@@ -198,7 +198,7 @@ Cloudflare static-assets Worker.
 ### Remaining
 
 1. **Cutover & deprecation** — stand up the Workers, point `hackbox.ca` DNS at
-   the client Worker and add the `hackbox.ca/api/*` + `hackbox.ca/rooms/*`
+   the client Worker and add the `hackbox.ca/api/*` + `hackbox.ca/r/*`
    routes, update the public docs with the SDK + a transport-migration note, run
    the old Render service read-only during a deprecation window, then
    decommission Render + Postgres.

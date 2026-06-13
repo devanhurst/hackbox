@@ -76,5 +76,5 @@ socket.emit("change", { event: "MyEvent", value: [...] });
 | `socket.on("state.member", cb)`             | `socket.on("state.member", cb)` (unchanged)     |
 | `socket.emit("member.update", payload)`     | `socket.emit("member.update", payload)` (unchanged) |
 
-The transport URL is now `wss://hackbox.ca/rooms/<roomCode>` and is
+The transport URL is now `wss://hackbox.ca/r/<roomCode>` and is
 managed for you — pass `host` + `roomCode` instead of a socket.io URL.

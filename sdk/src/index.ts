@@ -30,12 +30,12 @@ const KEEPALIVE_PING = "ping";
 // transport but `WebSocket` isn't necessarily global).
 const WS_OPEN = 1;
 
-// The relay is served at hackbox.ca/rooms/<code> — a single static path prefix
-// on the apex (not a `relay.` subdomain, which some users' wifi middleboxes
+// The relay is served at hackbox.ca/r/<code> — a single static path prefix on
+// the apex (not a `relay.` subdomain, which some users' wifi middleboxes
 // SNI-filter and reset; the apex passes). One prefix is the minimum: the apex
 // serves the SPA and Cloudflare routes by path, not by the WebSocket Upgrade
 // header, so the relay needs its own path. Must match the relay Worker's router.
-const RELAY_PATH_PREFIX = "rooms";
+const RELAY_PATH_PREFIX = "r";
 
 // Close codes >= 4000 are deliberate server rejections (room gone, room closed,
 // Twitch required, duplicate device, room expired). They must NOT trigger a
@@ -100,7 +100,7 @@ export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocke
     host: options.host,
     room: roomCode,
     // basePath overrides partysocket's default `<prefix>/<party>/<room>` URL,
-    // giving the minimal `wss://<host>/rooms/<code>`.
+    // giving the minimal `wss://<host>/r/<code>`.
     basePath: `${RELAY_PATH_PREFIX}/${roomCode}`,
     query: {
       userId: options.userId,
