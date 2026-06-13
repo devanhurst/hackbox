@@ -141,15 +141,30 @@ Room codes are allocated entirely in the api Worker: generate a code, ask the
 relay DO to `init`; a `409` means taken, so retry (up to 8 attempts). No shared
 registry, no D1 — the DO's own existence is the source of truth.
 
+### Done — `@hackbox/client` SDK
+
+The connection SDK both the hackbox client and third-party hosts use. It wraps a
+`partysocket` raw-WebSocket connection and re-exposes the **exact** legacy
+socket.io event surface, so integrators migrate by swapping their connection
+import, not their logic.
+
+- `sdk/src/index.ts` — `createHackboxSocket({ host, roomCode, userId, userName?,
+  metadata? })` → `{ on, off, emit, close, connected, raw }`. Frames are the
+  `{ type, payload }` envelope; `on(type, cb)` ⇄ `cb(payload)`,
+  `emit(type, payload)` ⇄ send. Includes the 25s keepalive ping (matching the
+  relay's edge auto-response), fatal-close handling (≥4000 → stop reconnecting,
+  surface the preceding `error`, emit a terminal `disconnect`), and the legacy
+  transient-reason set so existing `on("disconnect")` handlers behave the same.
+- `sdk/package.json` (`@hackbox/client`, `partysocket` dep, `tsc` build →
+  ESM + d.ts), `sdk/tsconfig.json`, `sdk/README.md` (host/player usage + a
+  socket.io migration table). `tsc` builds and type-checks clean.
+
 ### Remaining
 
-1. **`@hackbox/client` SDK** — wraps `partysocket`, exposes the legacy
-   `emit`/`on` surface, handles keepalive pings and fatal close codes (≥4000 →
-   stop reconnecting + surface `error`). Published for third-party hosts.
-3. **Client cutover** — rewrite `client/src/lib/sockets/playerSocket.ts` onto the
-   SDK; replace `VITE_SERVER_URL` with a partykit-host config; build the client
-   as a static-assets Worker (copy `client/worker/index.js` from jparty).
-4. **Cutover & deprecation** — stand up the Workers on a new origin, point
+1. **Client cutover** — rewrite `client/src/lib/sockets/playerSocket.ts` onto the
+   SDK; replace `VITE_SERVER_URL` with a relay-host config; build the client as a
+   static-assets Worker (copy `client/worker/index.js` from jparty).
+2. **Cutover & deprecation** — stand up the Workers on a new origin, point
    `app.hackbox.ca` DNS at them, update the public docs with the SDK + a
    transport-migration note, run the old Render service read-only during a
    deprecation window, then decommission Render + Postgres.
