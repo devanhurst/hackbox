@@ -7,7 +7,7 @@ speaks **raw WebSocket** rather than the socket.io/engine.io protocol. This SDK
 wraps a `partysocket` connection and re-exposes the **same event surface** the
 old socket.io client had, so migrating means swapping your connection import —
 not your logic. The event names and payloads are unchanged (see
-app.hackbox.ca/docs).
+hackbox.ca/docs).
 
 ## Install
 
@@ -21,10 +21,10 @@ npm install @hackbox/client
 import { createHackboxSocket } from "@hackbox/client";
 
 // 1. Create a room over HTTP (unchanged):
-//    POST https://app.hackbox.ca/rooms { hostId, twitchRequired? } -> { roomCode }
+//    POST https://hackbox.ca/api/rooms { hostId, twitchRequired? } -> { roomCode }
 
 const socket = createHackboxSocket({
-  host: "app.hackbox.ca",
+  host: "hackbox.ca",
   roomCode,
   userId: hostId, // connecting with the room's hostId makes you the host
 });
@@ -48,7 +48,7 @@ socket.emit("reload");
 
 ```ts
 const socket = createHackboxSocket({
-  host: "app.hackbox.ca",
+  host: "hackbox.ca",
   roomCode,
   userId, // any id other than the hostId joins as a player
   userName,
@@ -76,5 +76,5 @@ socket.emit("change", { event: "MyEvent", value: [...] });
 | `socket.on("state.member", cb)`             | `socket.on("state.member", cb)` (unchanged)     |
 | `socket.emit("member.update", payload)`     | `socket.emit("member.update", payload)` (unchanged) |
 
-The transport URL is now `wss://app.hackbox.ca/parties/main/<roomCode>` and is
+The transport URL is now `wss://hackbox.ca/relay/main/<roomCode>` and is
 managed for you — pass `host` + `roomCode` instead of a socket.io URL.

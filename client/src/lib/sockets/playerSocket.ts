@@ -1,5 +1,5 @@
 import config from "@/config";
-import { io, Socket } from "socket.io-client";
+import { createHackboxSocket, type HackboxSocket } from "@hackbox/client";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";
@@ -19,23 +19,26 @@ const stateSkeleton = {
   },
 };
 
-const attachPlayerEvents = (socket: Socket, state: PlayerState, router: Router) => {
-  socket.on("disconnect", (reason: string) => {
+const attachPlayerEvents = (socket: HackboxSocket, state: PlayerState, router: Router) => {
+  // The SDK preserves the legacy socket.io disconnect semantics: transient
+  // reasons (it reconnects under the hood) vs terminal ones (room gone/closed/
+  // expired, duplicate device) that should send the player home.
+  socket.on("disconnect", (reason) => {
     const reconnectReasons = ["ping timeout", "transport close", "transport error"];
-    if (reconnectReasons.includes(reason)) return;
+    if (reconnectReasons.includes(reason as string)) return;
     router.push("/");
   });
 
-  socket.on("error", (payload: { message: string }) => {
-    alert(payload.message);
+  socket.on("error", (payload) => {
+    alert((payload as { message: string }).message);
   });
 
   socket.on("reload", () => {
     location.reload();
   });
 
-  socket.on("state.member", (payload: PlayerStatePayload) => {
-    const newState = merge(cloneDeep(stateSkeleton), payload);
+  socket.on("state.member", (payload) => {
+    const newState = merge(cloneDeep(stateSkeleton), payload as PlayerStatePayload);
 
     processFonts(newState);
     expandStatePresets(newState);
@@ -46,14 +49,13 @@ const attachPlayerEvents = (socket: Socket, state: PlayerState, router: Router) 
 };
 
 const initializePlayerSocket = (router: Router) => {
-  const socket = io(config.serverUrl, {
-    query: {
-      userId: getUserId(),
-      userName: getUserName(),
-      roomCode: getRoomCode(),
-      metadata: JSON.stringify({
-        twitchAccessToken: getTwitchAccessToken(),
-      }),
+  const socket = createHackboxSocket({
+    host: config.relayHost,
+    roomCode: getRoomCode(),
+    userId: getUserId(),
+    userName: getUserName(),
+    metadata: {
+      twitchAccessToken: getTwitchAccessToken(),
     },
   });
 

@@ -68,8 +68,22 @@ repo, so there is nothing to migrate there):
 | `hackbox-client` (static assets) | Serves the Vue SPA | `client/worker/index.js` |
 
 `POST /rooms` lives in the api Worker (Hono) rather than the relay because
-partyserver routes purely on `/parties/:party/:room`; the api Worker generates a
+partyserver routes purely on `/<prefix>/:party/:room`; the api Worker generates a
 code, calls the room's DO `POST .../init`, and retries on a `409` collision.
+
+### Routing: path prefixes on the apex, not subdomains
+
+All three Workers are served under the apex `hackbox.ca` via path prefixes
+rather than `api.`/`relay.` subdomains. Subdomains get reset by some users'
+wifi/CGNAT middleboxes that SNI-filter, while the apex passes — the same fix
+jparty adopted. The relay uses a `/relay` partyserver prefix (passed to both
+`routePartykitRequest` and the SDK's `partysocket`) instead of the default
+`/parties`:
+
+- `hackbox.ca/relay/*` → `hackbox-relay` (WS at `wss://hackbox.ca/relay/main/<code>`)
+- `hackbox.ca/api/*` → `hackbox-api` (`POST /api/rooms`, `GET /api/rooms/:code`)
+- `hackbox.ca/*` → `hackbox-client` (SPA; the two prefixes above are more specific
+  and take precedence)
 
 ### Wire protocol
 
@@ -132,8 +146,8 @@ the public contract:
   non-members), `GET /healthcheck` → `{ ok: true }`. Permissive CORS (`origin: *`).
 - `api/src/relay.ts` — `generateRoomCode` (ported verbatim) + a `RelayClient`
   that talks to the relay over a **service binding**, hitting
-  `/parties/main/<code>/init` (allocate, retry on `409` collision) and
-  `/parties/main/<code>` (existence/membership probe).
+  `/relay/main/<code>/init` (allocate, retry on `409` collision) and
+  `/relay/main/<code>` (existence/membership probe).
 - `api/wrangler.toml` (service binding `RELAY` → `hackbox-relay`),
   `api/package.json`, `api/tsconfig.json`. `tsc --noEmit` passes.
 
@@ -159,15 +173,32 @@ import, not their logic.
   ESM + d.ts), `sdk/tsconfig.json`, `sdk/README.md` (host/player usage + a
   socket.io migration table). `tsc` builds and type-checks clean.
 
+### Done — client cutover + static-assets Worker
+
+The Vue client now talks to the new backend through the SDK, and ships as a
+Cloudflare static-assets Worker.
+
+- `client/src/lib/sockets/playerSocket.ts` — rewritten onto `createHackboxSocket`
+  (was `socket.io-client`). Event handlers (`state.member`, `reload`, `error`,
+  `disconnect`) are unchanged; the SDK preserves the transient-vs-terminal
+  disconnect semantics.
+- `client/src/components/*.vue` (6 socket consumers) — inject type swapped from
+  socket.io's `Socket` to `HackboxSocket`; `.emit(...)` calls unchanged.
+- `client/src/config/index.ts` — `serverUrl` split into `apiUrl`
+  (`…/api`) and `relayHost` (apex host for the WS). `getRoom.ts` uses `apiUrl`.
+- `client/package.json` — drops `socket.io-client`, adds `@hackbox/client`
+  (`file:../sdk`).
+- `client/worker/index.js` + `client/wrangler.toml` — static-assets Worker
+  serving Vite's `dist/` with SPA fallback (and a 404 guard for stale hashed
+  chunks). `vue-tsc` type-checks and `vite build` succeeds with the SDK bundled.
+
 ### Remaining
 
-1. **Client cutover** — rewrite `client/src/lib/sockets/playerSocket.ts` onto the
-   SDK; replace `VITE_SERVER_URL` with a relay-host config; build the client as a
-   static-assets Worker (copy `client/worker/index.js` from jparty).
-2. **Cutover & deprecation** — stand up the Workers on a new origin, point
-   `app.hackbox.ca` DNS at them, update the public docs with the SDK + a
-   transport-migration note, run the old Render service read-only during a
-   deprecation window, then decommission Render + Postgres.
+1. **Cutover & deprecation** — stand up the Workers, point `hackbox.ca` DNS at
+   the client Worker and add the `hackbox.ca/api/*` + `hackbox.ca/relay/*`
+   routes, update the public docs with the SDK + a transport-migration note, run
+   the old Render service read-only during a deprecation window, then
+   decommission Render + Postgres.
 
 ## Convergence with jparty
 

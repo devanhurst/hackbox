@@ -30,6 +30,12 @@ const KEEPALIVE_PING = "ping";
 // transport but `WebSocket` isn't necessarily global).
 const WS_OPEN = 1;
 
+// The relay is served under hackbox.ca/relay/* (a path prefix on the apex, not
+// a `relay.` subdomain — some users' wifi middleboxes SNI-filter and reset
+// subdomain connections while letting the apex through). Must match the
+// `prefix` passed to routePartykitRequest in the relay Worker.
+const RELAY_PATH_PREFIX = "relay";
+
 // Close codes >= 4000 are deliberate server rejections (room gone, room closed,
 // Twitch required, duplicate device, room expired). They must NOT trigger a
 // reconnect — the relay sends a human-readable `error` frame first, then closes
@@ -67,6 +73,8 @@ export interface HackboxSocket {
   emit(event: string, payload?: unknown): void;
   /** Permanently close the connection (no reconnect). */
   close(): void;
+  /** Alias of close(), for socket.io parity. */
+  disconnect(): void;
   /** Whether the underlying socket is currently open. */
   readonly connected: boolean;
   /** Escape hatch to the underlying partysocket. */
@@ -92,6 +100,7 @@ export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocke
     host: options.host,
     room: options.roomCode.toUpperCase(),
     party: options.party ?? "main",
+    prefix: RELAY_PATH_PREFIX,
     query: {
       userId: options.userId,
       userName: options.userName ?? "",
@@ -185,6 +194,9 @@ export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocke
       fatal = true;
       stopPing();
       socket.close();
+    },
+    disconnect() {
+      this.close();
     },
     get connected() {
       return socket.readyState === WS_OPEN;

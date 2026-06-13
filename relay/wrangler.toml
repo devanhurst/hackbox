@@ -3,9 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2026-04-09"
 workers_dev = true
 
-# Once DNS is cut over, serve the relay under the production host so a single
-# origin survives Worker renames (mirrors the jparty relay layout):
-#   routes = [{ pattern = "app.hackbox.ca/parties/*", zone_name = "hackbox.ca" }]
+# Serve the relay under the apex at hackbox.ca/relay/* — a path prefix, not a
+# `relay.` subdomain (those get reset by some users' SNI-filtering middleboxes;
+# the apex is the durable fix). Matches the routePartykitRequest prefix "relay"
+# in src/index.ts and the client SDK's partysocket prefix.
+#   routes = [{ pattern = "hackbox.ca/relay/*", zone_name = "hackbox.ca" }]
 
 [durable_objects]
 bindings = [{ name = "Main", class_name = "Room" }]

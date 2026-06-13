@@ -6,10 +6,12 @@
 // `/parties/main/<code>` path, so `this.name` inside the DO is the room code.
 
 // The host of this URL is irrelevant over a service binding (only the path is
-// routed); a stable placeholder keeps the requests readable in logs.
+// routed); a stable placeholder keeps the requests readable in logs. The
+// `/relay` prefix must match the one passed to routePartykitRequest in the
+// relay Worker (and the client SDK's partysocket prefix).
 const RELAY_ORIGIN = "https://hackbox-relay";
 
-const roomPath = (code: string) => `${RELAY_ORIGIN}/parties/main/${code}`;
+const roomPath = (code: string) => `${RELAY_ORIGIN}/relay/main/${code}`;
 
 // 4-character consonant code, ported verbatim from the legacy
 // `server/models/Room.ts:generateRoomCode()`.

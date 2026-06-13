@@ -3,10 +3,11 @@ import { cors } from "hono/cors";
 import { generateRoomCode, RelayClient } from "./relay";
 
 // HTTP front door for hackbox, ported from the legacy Express `server/api.ts`.
-// Preserves the public contract documented at app.hackbox.ca/docs:
-//   POST /rooms             -> { ok, roomCode }
-//   GET  /rooms/:roomCode   -> { exists, twitchRequired } | { exists: false }
-//   GET  /healthcheck       -> { ok: true }
+// Served under the apex at hackbox.ca/api/* (a path prefix, not an `api.`
+// subdomain — subdomains get reset by some users' SNI-filtering middleboxes):
+//   POST /api/rooms             -> { ok, roomCode }
+//   GET  /api/rooms/:roomCode   -> { exists, twitchRequired } | { exists: false }
+//   GET  /api/healthcheck       -> { ok: true }
 // All room state lives in the relay Worker's Durable Objects; this Worker only
 // allocates codes and answers existence probes.
 
@@ -19,10 +20,12 @@ interface Env {
 // plenty of headroom (mirrors the legacy recursive retry in Room.create).
 const MAX_CODE_ATTEMPTS = 8;
 
-const app = new Hono<{ Bindings: Env }>();
+// basePath("/api") so every route is served under the apex /api prefix
+// (the Cloudflare route hackbox.ca/api/* forwards the full path through).
+const app = new Hono<{ Bindings: Env }>().basePath("/api");
 
 // The legacy server used `cors({ origin: "*" })`. The browser client calls
-// GET /rooms/:code cross-origin, and hosts POST /rooms from arbitrary backends.
+// GET /api/rooms/:code cross-origin, and hosts POST /api/rooms from arbitrary backends.
 app.use("*", cors({ origin: "*" }));
 
 app.get("/healthcheck", (c) => c.json({ ok: true }));

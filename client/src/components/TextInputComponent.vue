@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Socket } from "socket.io-client";
+import type { HackboxSocket } from "@hackbox/client";
 import { inject, reactive, onMounted, onUnmounted, watch } from "vue";
 import { debounce, mergeProps } from "@/lib/helpers";
 
-const socket: Socket = inject("socket") as Socket;
+const socket: HackboxSocket = inject("socket") as HackboxSocket;
 
 let mountedAt: number;
 
