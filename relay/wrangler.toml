@@ -5,7 +5,8 @@ workers_dev = true
 
 # This worker's dependencies are installed by Workers Builds (its root directory
 # is set to relay/, which has its own package-lock.json), so no [build] step is
-# needed — wrangler bundles `main` directly.
+# needed — wrangler bundles `main` directly. Workers Builds triggers a deploy on
+# pushes that change files under relay/.
 
 # Serve the relay under the apex at hackbox.ca/r/* — a single static path
 # prefix, not a `relay.` subdomain (those get reset by some users' SNI-filtering

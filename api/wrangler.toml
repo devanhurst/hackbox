@@ -5,7 +5,8 @@ workers_dev = true
 
 # This worker's dependencies are installed by Workers Builds (its root directory
 # is set to api/, which has its own package-lock.json), so no [build] step is
-# needed — wrangler bundles `main` directly.
+# needed — wrangler bundles `main` directly. Workers Builds triggers a deploy on
+# pushes that change files under api/.
 
 # Serve the HTTP API under the apex at hackbox.ca/api/* — a path prefix, not an
 # `api.` subdomain (subdomains get reset by some users' SNI-filtering middleboxes).

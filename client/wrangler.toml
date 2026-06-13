@@ -13,7 +13,8 @@ workers_dev = true
 # client/ in Workers Builds, dependencies (including devDeps like vite) are
 # installed automatically, so this only builds. `build-only` skips the vue-tsc
 # type-check to keep deploys fast. Output lands in client/dist, which [assets]
-# below points at.
+# below points at. Workers Builds triggers a deploy on pushes that change files
+# under client/.
 [build]
 command = "npm run build-only"
 
