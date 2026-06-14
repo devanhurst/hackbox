@@ -256,6 +256,28 @@ app.post("/admin/api/revive", async (c) => {
   return c.json({ ok: false, error: `relay init failed: ${res.status}` }, 502);
 });
 
+// Delete a room entirely: destroy the live Room DO (freeing its code) and remove
+// its history rows (the room + its members) from D1.
+app.post("/admin/api/delete", async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id) return c.json({ ok: false, error: "id required" }, 400);
+
+  const row = await c.env.DB.prepare(`SELECT code FROM rooms WHERE id = ?`).bind(id).first<{ code: string }>();
+  if (!row) return c.json({ ok: false, error: "room not found" }, 404);
+
+  // Tear down the live DO if this row is the active instance at that code.
+  await c.env.RELAY.fetch(
+    new Request(`https://relay/admin/room/${row.code}?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+  );
+
+  // Remove the history rows.
+  await c.env.DB.prepare(`DELETE FROM members WHERE room_id = ?`).bind(id).run();
+  await c.env.DB.prepare(`DELETE FROM rooms WHERE id = ?`).bind(id).run();
+
+  return c.json({ ok: true, roomCode: row.code });
+});
+
 export default app;
 
 const PAGE = `<!doctype html>
@@ -281,6 +303,7 @@ const PAGE = `<!doctype html>
   button { background: #7c2fec; color: #fff; border: 0; border-radius: 5px; padding: 8px 14px; font: inherit; font-weight: 700; cursor: pointer; }
   button.sec { background: #2e1f4d; }
   button.mini { padding: 2px 8px; font-size: 11px; font-weight: 700; background: #2e1f4d; margin-left: 6px; }
+  button.danger { background: #5e2030; }
   button:disabled { opacity: .5; cursor: default; }
   .note { display: none; margin-top: 12px; padding: 10px 12px; background: #14331f; border: 1px solid #2c6e49; border-radius: 6px; }
   .note.err { background: #331616; border-color: #6e2c2c; }
@@ -376,14 +399,26 @@ const PAGE = `<!doctype html>
     } catch (e) { alert("Revive failed: " + e); }
   }
 
+  async function deleteRoom(id) {
+    if (!confirm("Delete this room entirely? This destroys the live room (freeing its code) and removes it and its members from history. This cannot be undone.")) return;
+    try {
+      var res = await fetch("/admin/api/delete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: id }) });
+      var data = await res.json();
+      if (data.ok) { load(); }
+      else { alert("Delete failed: " + (data.error || res.status)); }
+    } catch (e) { alert("Delete failed: " + e); }
+  }
+
   function statusCell(r) {
     var live = r.endedAt == null && r.live !== false;
     var b = r.endedAt != null ? badge(false, "ended", "end")
       : r.live === false ? badge(false, "gone")
       : r.hasHost ? badge(true, "host connected") : badge(false, "no host");
-    // Offer revive for any room that isn't currently live (delegated click below).
+    // Revive any room that isn't currently live; delete is always available
+    // (delegated click handlers below).
     var revive = live ? "" : ' <button class="mini" data-revive="' + esc(r.id) + '">revive</button>';
-    return b + revive;
+    var del = ' <button class="mini danger" data-delete="' + esc(r.id) + '">delete</button>';
+    return b + revive + del;
   }
 
   function row(r) {
@@ -426,10 +461,13 @@ const PAGE = `<!doctype html>
   }
   $("#auto").onchange = function (e) { setAuto(e.target.checked); };
   $("#refresh").onclick = load;
-  // Delegated handler for the per-row revive buttons.
+  // Delegated handlers for the per-row revive / delete buttons.
   $("#rooms").addEventListener("click", function (e) {
-    var btn = e.target.closest ? e.target.closest("[data-revive]") : null;
-    if (btn) reviveRoom(btn.getAttribute("data-revive"));
+    if (!e.target.closest) return;
+    var rev = e.target.closest("[data-revive]");
+    if (rev) { reviveRoom(rev.getAttribute("data-revive")); return; }
+    var del = e.target.closest("[data-delete]");
+    if (del) { deleteRoom(del.getAttribute("data-delete")); }
   });
   setAuto(true);
   load();

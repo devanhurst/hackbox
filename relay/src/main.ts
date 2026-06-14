@@ -190,6 +190,13 @@ export class Room extends Server<Env> {
       return this.adminStatus();
     }
 
+    // DELETE .../admin/room/<code>?id=<id> — destroy the live room so its code is
+    // freed (admin "delete"). The optional `id` guards against destroying a
+    // different instance that happens to share the code.
+    if (req.method === "DELETE" && url.pathname.startsWith("/admin/room/")) {
+      return this.destroy(url.searchParams.get("id"));
+    }
+
     // GET — existence + status probe (replaces `Room.find`). Used by the client
     // before connecting and by the api Worker's GET /rooms/:code. When a
     // `userId` is supplied, `isMember` reports whether that user has a record in
@@ -489,6 +496,27 @@ export class Room extends Server<Env> {
       this.members.set(m.userId, record);
       await this.ctx.storage.put(`m:${m.userId}`, record);
     }
+  }
+
+  // Tear down the live room (admin delete): close connections and wipe all DO
+  // storage + the expiry alarm so the code is free for reuse. The D1 history row
+  // is removed by the admin Worker. Guarded by `id` so we don't destroy a
+  // different live instance that happens to share the code.
+  private async destroy(expectedId: string | null): Promise<Response> {
+    if (!this.settings) {
+      return Response.json({ destroyed: false, reason: "not live" }, { headers: corsHeaders() });
+    }
+    if (expectedId && this.settings.id !== expectedId) {
+      return Response.json({ destroyed: false, reason: "different instance" }, { headers: corsHeaders() });
+    }
+    for (const conn of this.getConnections<ConnState>()) {
+      this.fail(conn, "This room has been deleted.");
+    }
+    await this.ctx.storage.deleteAlarm();
+    await this.ctx.storage.deleteAll();
+    this.settings = null;
+    this.members.clear();
+    return Response.json({ destroyed: true }, { headers: corsHeaders() });
   }
 
   // Reactivate an existing history row on revive (no new row — the same instance
