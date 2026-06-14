@@ -61,7 +61,7 @@ One query emits both tables; the CTE generates each room `id` once so the
 
 ```bash
 PGPASSWORD=… psql -h <PGHOST> -U <PGUSER> <PGDATABASE> -At -o migration.sql -c "
-WITH r AS (
+WITH r AS MATERIALIZED (
   SELECT code, gen_random_uuid()::text AS rid, host_id::text AS host_id,
          twitch_required::int AS tr, persistent::int AS pe, closed::int AS cl,
          (extract(epoch from created_at)*1000)::bigint AS ca
