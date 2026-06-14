@@ -40,6 +40,16 @@ interface AdminMember {
   online: boolean;
 }
 
+// Parse a member's stored metadata JSON back into an object for the relay.
+function parseMetadata(metadata: string | null): unknown {
+  if (!metadata) return undefined;
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return undefined;
+  }
+}
+
 // Pull a twitch display name out of a member's stored metadata JSON, if any.
 function twitchName(metadata: string | null): string | null {
   if (!metadata) return null;
@@ -201,10 +211,10 @@ app.post("/admin/api/rooms", async (c) => {
   return c.json({ ok: false, error: "could not allocate a room code" }, 503);
 });
 
-// Revive a room straight from the history table: re-create a live Room DO at its
-// code using its saved settings (hostId/twitchRequired/persistent/closed). This
-// is a new room instance — the original history row stays, and the relay writes
-// a fresh row for the revived instance.
+// Revive a room straight from the history table, restoring it *in place*:
+// re-create the live Room DO at its code, reusing the same history row id and
+// seeding its members back from D1. No new row is created — the same instance
+// comes back to life.
 app.post("/admin/api/revive", async (c) => {
   const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
   const id = typeof body.id === "string" ? body.id : "";
@@ -213,14 +223,34 @@ app.post("/admin/api/revive", async (c) => {
   const row = await c.env.DB.prepare(`SELECT * FROM rooms WHERE id = ?`).bind(id).first<RoomRow>();
   if (!row) return c.json({ ok: false, error: "room not found" }, 404);
 
-  const settings: RoomSettings = {
-    hostId: row.host_id,
-    twitchRequired: !!row.twitch_required,
-    persistent: !!row.persistent,
-    closed: !!row.closed,
-  };
+  const { results: memberRows } = await c.env.DB.prepare(
+    `SELECT user_id, user_name, metadata FROM members WHERE room_id = ?`,
+  )
+    .bind(id)
+    .all<{ user_id: string; user_name: string; metadata: string | null }>();
 
-  const res = await initRoom(c.env.RELAY, row.code, settings);
+  const members = memberRows.map((m) => ({
+    userId: m.user_id,
+    userName: m.user_name,
+    metadata: parseMetadata(m.metadata),
+  }));
+
+  const res = await c.env.RELAY.fetch(
+    new Request(`https://relay/r/${row.code}/init`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        restore: true,
+        id: row.id,
+        hostId: row.host_id,
+        twitchRequired: !!row.twitch_required,
+        persistent: !!row.persistent,
+        closed: !!row.closed,
+        members,
+      }),
+    }),
+  );
+
   if (res.status === 409) return c.json({ ok: false, error: `${row.code} is currently live` }, 409);
   if (res.ok) return c.json({ ok: true, roomCode: row.code, hostId: row.host_id });
   return c.json({ ok: false, error: `relay init failed: ${res.status}` }, 502);

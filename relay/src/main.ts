@@ -127,7 +127,9 @@ export class Room extends Server<Env> {
 
     // POST .../init — initialise the room (called by the api Worker's
     // POST /rooms after it has allocated a unique code). Returns 409 if the
-    // room already exists so the caller can retry with a fresh code.
+    // room already exists so the caller can retry with a fresh code. A `restore`
+    // payload revives an existing room *in place* (reuses its history row id and
+    // seeds its members back) instead of minting a new instance.
     if (req.method === "POST" && url.pathname.endsWith("/init")) {
       if (this.settings) {
         return Response.json({ ok: false, error: "exists" }, { status: 409, headers: corsHeaders() });
@@ -139,9 +141,11 @@ export class Room extends Server<Env> {
             twitchRequired?: boolean;
             persistent?: boolean;
             closed?: boolean;
-            // Optional: preserve the original creation time when importing an
-            // existing room (e.g. migrating the persistent room from Postgres).
             createdAt?: number;
+            // Revive an existing room in place.
+            restore?: boolean;
+            id?: string;
+            members?: { userId?: string; userName?: string; metadata?: MemberMetadata }[];
           }
         | null;
 
@@ -149,23 +153,31 @@ export class Room extends Server<Env> {
         return Response.json({ ok: false, error: "hostId required" }, { status: 400, headers: corsHeaders() });
       }
 
+      const isRestore = body.restore === true && typeof body.id === "string";
+
       const settings: RoomSettings = {
-        id: crypto.randomUUID(),
+        // Restore reuses the room's existing history-row id; a fresh create mints one.
+        id: isRestore ? body.id! : crypto.randomUUID(),
         hostId: body.hostId,
         twitchRequired: Boolean(body.twitchRequired),
         persistent: Boolean(body.persistent),
         closed: Boolean(body.closed),
-        createdAt: typeof body.createdAt === "number" ? body.createdAt : Date.now(),
+        // A revived room starts a fresh session now (its original created_at is
+        // preserved on the history row); a normal create may carry a createdAt.
+        createdAt: !isRestore && typeof body.createdAt === "number" ? body.createdAt : Date.now(),
       };
       this.settings = settings;
       await this.ctx.storage.put("settings", settings);
-      // Persistent rooms never expire; ephemeral rooms self-destruct after 24h.
-      // (An imported ephemeral room with a past createdAt would expire at once —
-      // we only ever import the persistent room live, so this is moot.)
       if (!settings.persistent) {
         await this.ctx.storage.setAlarm(settings.createdAt + ROOM_TTL_MS);
       }
-      await this.recordRoomCreated(settings);
+
+      if (isRestore) {
+        await this.seedMembers(body.members ?? []);
+        await this.recordRoomRevived(settings.id);
+      } else {
+        await this.recordRoomCreated(settings);
+      }
 
       return Response.json({ ok: true, roomCode: this.name }, { headers: corsHeaders() });
     }
@@ -456,6 +468,38 @@ export class Room extends Server<Env> {
         .run();
     } catch (e) {
       console.error(`[relay ${this.name}] D1 room insert failed`, e);
+    }
+  }
+
+  // Seed members back into a revived room from the D1 history. We restore
+  // identity (userId/userName/metadata) so the roster comes back immediately;
+  // the per-member UI state is left at the default — the host re-drives each
+  // screen on reconnect (it is authoritative), and live UI state is never
+  // persisted to D1 (that would be heavy write amplification during gameplay).
+  private async seedMembers(seed: { userId?: string; userName?: string; metadata?: MemberMetadata }[]) {
+    for (const m of seed) {
+      if (!m.userId) continue;
+      const userName = m.userName ?? "";
+      const record: MemberRecord = {
+        userId: m.userId,
+        userName: userName.toUpperCase(),
+        metadata: m.metadata ?? {},
+        state: sanitizeState(defaultMemberState(userName)),
+      };
+      this.members.set(m.userId, record);
+      await this.ctx.storage.put(`m:${m.userId}`, record);
+    }
+  }
+
+  // Reactivate an existing history row on revive (no new row — the same instance
+  // comes back to life).
+  private async recordRoomRevived(id: string) {
+    try {
+      await this.env.DB.prepare(`UPDATE rooms SET ended_at = NULL, end_reason = NULL WHERE id = ?`)
+        .bind(id)
+        .run();
+    } catch (e) {
+      console.error(`[relay ${this.name}] D1 room revive failed`, e);
     }
   }
 
