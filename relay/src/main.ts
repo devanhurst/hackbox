@@ -39,6 +39,8 @@ interface ConnState {
 // "exists" iff this record is present (replacing the `rooms` row). Cached in
 // memory on start and refreshed from storage after a hibernation eviction.
 interface RoomSettings {
+  // Unique per room instance (codes are recycled), used as the D1 history key.
+  id: string;
   hostId: string;
   twitchRequired: boolean;
   persistent: boolean;
@@ -81,8 +83,9 @@ function corsHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 interface Env {
   TWITCH_CLIENT_ID?: string;
-  // Singleton registry DO that tracks active room codes for the admin monitor.
-  Registry: DurableObjectNamespace;
+  // Permanent room history (see src/db/schema.sql). The Room DO records its own
+  // lifecycle here: a row on creation, an `ended_at` stamp on expiry.
+  DB: D1Database;
 }
 
 export class Room extends Server<Env> {
@@ -131,7 +134,15 @@ export class Room extends Server<Env> {
       }
 
       const body = (await req.json().catch(() => null)) as
-        | { hostId?: string; twitchRequired?: boolean; persistent?: boolean; closed?: boolean }
+        | {
+            hostId?: string;
+            twitchRequired?: boolean;
+            persistent?: boolean;
+            closed?: boolean;
+            // Optional: preserve the original creation time when importing an
+            // existing room (e.g. migrating the persistent room from Postgres).
+            createdAt?: number;
+          }
         | null;
 
       if (!body?.hostId) {
@@ -139,18 +150,22 @@ export class Room extends Server<Env> {
       }
 
       const settings: RoomSettings = {
+        id: crypto.randomUUID(),
         hostId: body.hostId,
         twitchRequired: Boolean(body.twitchRequired),
         persistent: Boolean(body.persistent),
         closed: Boolean(body.closed),
-        createdAt: Date.now(),
+        createdAt: typeof body.createdAt === "number" ? body.createdAt : Date.now(),
       };
       this.settings = settings;
       await this.ctx.storage.put("settings", settings);
+      // Persistent rooms never expire; ephemeral rooms self-destruct after 24h.
+      // (An imported ephemeral room with a past createdAt would expire at once —
+      // we only ever import the persistent room live, so this is moot.)
       if (!settings.persistent) {
         await this.ctx.storage.setAlarm(settings.createdAt + ROOM_TTL_MS);
       }
-      await this.registerWithRegistry(settings);
+      await this.recordRoomCreated(settings);
 
       return Response.json({ ok: true, roomCode: this.name }, { headers: corsHeaders() });
     }
@@ -409,46 +424,50 @@ export class Room extends Server<Env> {
     for (const conn of this.getConnections<ConnState>()) {
       this.fail(conn, "This room has expired.");
     }
-    await this.deregisterFromRegistry();
+    await this.recordRoomEnded("expired");
     await this.ctx.storage.deleteAll();
     this.settings = null;
     this.members.clear();
   }
 
   // -------------------------------------------------------------------------
-  // Admin registry + monitoring
+  // Permanent history (D1) + admin monitoring
   // -------------------------------------------------------------------------
-  // Record this room in the singleton Registry DO so the admin monitor can
-  // enumerate it (Durable Objects aren't otherwise enumerable). Best-effort: a
-  // failed registration just means the room won't show up in the monitor; it
-  // doesn't break room creation.
-  private async registerWithRegistry(settings: RoomSettings) {
+  // Record the room in the permanent D1 history on creation. Best-effort: a
+  // failed write just means the room isn't recorded; it doesn't break the room.
+  private async recordRoomCreated(s: RoomSettings) {
     try {
-      const registry = this.env.Registry.get(this.env.Registry.idFromName("index"));
-      await registry.fetch(
-        new Request("https://relay/register", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ code: this.name, ...settings }),
-        }),
-      );
-    } catch {
-      /* best-effort */
+      await this.env.DB.prepare(
+        `INSERT INTO rooms (id, code, host_id, twitch_required, persistent, closed, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          s.id,
+          this.name,
+          s.hostId,
+          s.twitchRequired ? 1 : 0,
+          s.persistent ? 1 : 0,
+          s.closed ? 1 : 0,
+          s.createdAt,
+        )
+        .run();
+    } catch (e) {
+      console.error(`[relay ${this.name}] D1 room insert failed`, e);
     }
   }
 
-  private async deregisterFromRegistry() {
+  // Stamp the room's end in D1 (the row is kept forever — history is permanent).
+  private async recordRoomEnded(reason: string) {
+    const id = this.settings?.id;
+    if (!id) return;
     try {
-      const registry = this.env.Registry.get(this.env.Registry.idFromName("index"));
-      await registry.fetch(
-        new Request("https://relay/deregister", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ code: this.name }),
-        }),
-      );
-    } catch {
-      /* best-effort */
+      await this.env.DB.prepare(
+        `UPDATE rooms SET ended_at = ?, end_reason = ? WHERE id = ? AND ended_at IS NULL`,
+      )
+        .bind(Date.now(), reason, id)
+        .run();
+    } catch (e) {
+      console.error(`[relay ${this.name}] D1 room end failed`, e);
     }
   }
 

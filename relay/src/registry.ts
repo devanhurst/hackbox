@@ -2,15 +2,11 @@ import { DurableObject } from "cloudflare:workers";
 import { getServerByName } from "partyserver";
 import type { Room } from "./main";
 
-// Singleton Durable Object that tracks active room codes so the admin monitor
-// can enumerate rooms — Durable Objects are otherwise not enumerable (you can
-// only address one by name). Each `Room` DO registers itself on creation
-// (`/init`) and deregisters on expiry (its 24h alarm). Addressed by the fixed
-// name "index" from the relay Worker entry.
-//
-// It is reached only via DO-to-DO / service-binding calls: the relay Worker's
-// only public route is `/r/*` and its workers_dev URL is disabled, so the
-// `/admin/*` surface never arrives from the public internet.
+// DEPRECATED — superseded by permanent D1 room history (the Room DO now writes
+// its lifecycle directly to D1; the admin reads the listing from D1). This class
+// is no longer instantiated. It is kept only so the already-applied `v2`
+// durable-object migration still references a valid class; remove it via a
+// `deleted_classes` migration once safe.
 
 // Static metadata recorded at room creation. Live presence (host connected,
 // member roster) is fetched fresh from each Room DO on `/list`.

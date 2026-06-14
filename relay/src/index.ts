@@ -22,10 +22,12 @@ interface Env {
 // Worker's HTTP calls (`/r/<code>` and `/r/<code>/init`) flow through here;
 // trailing path segments are handled by the DO's onRequest.
 //
-// `/admin/rooms` returns the registry listing for the admin monitor. It is
-// served only via the api/admin Worker service bindings — the relay's only
-// public route is `hackbox.ca/r/*` and its workers_dev URL is disabled, so
-// `/admin/*` never arrives from the public internet.
+// `/admin/room/<code>` returns a room's live presence (host connected, member
+// roster + online counts) for the admin monitor. It is served only via the
+// admin Worker's service binding — the relay's only public route is
+// `hackbox.ca/r/*` and its workers_dev URL is disabled, so `/admin/*` never
+// arrives from the public internet. (The room *listing* is read from D1 by the
+// admin Worker directly; the relay only supplies live presence.)
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const parts = new URL(request.url).pathname.split("/").filter(Boolean);
@@ -35,9 +37,9 @@ export default {
       return stub.fetch(request);
     }
 
-    if (parts[0] === "admin" && parts[1] === "rooms") {
-      const registry = env.Registry.get(env.Registry.idFromName("index"));
-      return registry.fetch(new Request("https://relay/list"));
+    if (parts[0] === "admin" && parts[1] === "room" && parts[2]) {
+      const stub = await getServerByName(env.Main, parts[2].toUpperCase());
+      return stub.fetch(request);
     }
 
     return new Response("Not Found", { status: 404 });

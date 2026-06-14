@@ -14,11 +14,18 @@ routes = [{ pattern = "hackbox.ca/admin*", zone_name = "hackbox.ca" }]
 # set to admin/, which has its own package-lock.json), so no [build] step is
 # needed — wrangler bundles `main` directly.
 
-# Service binding to the relay Worker: the admin tool creates rooms (relay
-# /r/<code>/init) and lists them (relay /admin/rooms) over this binding.
+# Service binding to the relay Worker: the admin tool creates/imports rooms
+# (relay /r/<code>/init) and fetches live presence (relay /admin/room/<code>).
 [[services]]
 binding = "RELAY"
 service = "hackbox-relay"
+
+# Permanent room history (shared with the relay). The admin reads the listing
+# from here; the relay writes it.
+[[d1_databases]]
+binding = "DB"
+database_name = "hackbox"
+database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"
 
 [observability]
 enabled = true
