@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db, rooms } from "../db";
 
 // One-time migration of the legacy Postgres `rooms` into the Cloudflare D1
-// permanent history (relay/src/db/schema.sql). Run from server/ with the old
+// permanent history (db/schema.sql at the repo root). Run from server/ with the old
 // DATABASE_URL set:
 //
 //   npx tsx scripts/migrate-to-d1.ts

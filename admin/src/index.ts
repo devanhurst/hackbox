@@ -79,7 +79,7 @@ app.get("/admin/api/rooms", async (c) => {
       `SELECT * FROM rooms ORDER BY created_at DESC LIMIT 200`,
     ).all<RoomRow>());
   } catch (e) {
-    // Most likely the schema hasn't been applied yet (relay/src/db/schema.sql).
+    // Most likely the schema hasn't been applied yet (db/schema.sql).
     return c.json({ rooms: [], error: `D1 query failed: ${e}` }, 500);
   }
 

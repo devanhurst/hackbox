@@ -34,7 +34,7 @@ tag = "v2"
 new_sqlite_classes = ["Registry"]
 
 # Permanent room history. The Room DO writes a row on creation and stamps
-# ended_at on expiry. Schema: relay/src/db/schema.sql.
+# ended_at on expiry. Schema: db/schema.sql (repo root).
 [[d1_databases]]
 binding = "DB"
 database_name = "hackbox"

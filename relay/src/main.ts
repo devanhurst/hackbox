@@ -83,8 +83,8 @@ function corsHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 interface Env {
   TWITCH_CLIENT_ID?: string;
-  // Permanent room history (see src/db/schema.sql). The Room DO records its own
-  // lifecycle here: a row on creation, an `ended_at` stamp on expiry.
+  // Permanent room history (schema in db/schema.sql at the repo root). The Room
+  // DO records its own lifecycle here: a row on creation, ended_at on expiry.
   DB: D1Database;
 }
 
