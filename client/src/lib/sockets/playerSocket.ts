@@ -1,9 +1,16 @@
 import config from "@/config";
 import { createHackboxSocket, type HackboxSocket } from "@/lib/sockets/hackboxSocket";
+import { createLegacySocket } from "@/lib/sockets/legacySocket";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";
-import { getUserId, getUserName, getRoomCode, getTwitchAccessToken } from "@/lib/browserStorage";
+import {
+  getUserId,
+  getUserName,
+  getRoomCode,
+  getRoomLegacy,
+  getTwitchAccessToken,
+} from "@/lib/browserStorage";
 import { expandStatePresets, processFonts } from "../stateHelpers";
 import merge from "lodash/merge";
 import cloneDeep from "lodash/cloneDeep";
@@ -49,15 +56,20 @@ const attachPlayerEvents = (socket: HackboxSocket, state: PlayerState, router: R
 };
 
 const initializePlayerSocket = (router: Router) => {
-  const socket = createHackboxSocket({
-    host: config.relayHost,
+  const common = {
     roomCode: getRoomCode(),
     userId: getUserId(),
     userName: getUserName(),
     metadata: {
       twitchAccessToken: getTwitchAccessToken(),
     },
-  });
+  };
+
+  // Pick the transport for this room: the legacy socket.io server for rooms still
+  // hosted on the old backend, otherwise the new relay. The interface is the same.
+  const socket: HackboxSocket = getRoomLegacy()
+    ? createLegacySocket(common)
+    : createHackboxSocket({ host: config.relayHost, ...common });
 
   const state = reactive<PlayerState>(cloneDeep(stateSkeleton) as PlayerState);
 

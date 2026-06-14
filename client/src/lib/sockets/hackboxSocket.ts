@@ -67,8 +67,8 @@ export interface HackboxSocket {
   disconnect(): void;
   /** Whether the underlying socket is currently open. */
   readonly connected: boolean;
-  /** Escape hatch to the underlying partysocket. */
-  readonly raw: PartySocket;
+  /** Escape hatch to the underlying transport (partysocket or socket.io). */
+  readonly raw: unknown;
 }
 
 export function createHackboxSocket(options: HackboxSocketOptions): HackboxSocket {

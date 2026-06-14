@@ -17,6 +17,10 @@ export default {
   // Host[:port] only — no protocol or path; the SDK adds the "/r" prefix and
   // partysocket infers ws/wss.
   relayHost: import.meta.env.VITE_RELAY_HOST || (isDev ? "localhost:1999" : window.location.host),
+  // Legacy socket.io server (the old Render deployment) for backward compat with
+  // rooms hosted by not-yet-updated Unity games. Used as a fallback when a room
+  // isn't found on the new relay.
+  legacyServerUrl: import.meta.env.VITE_LEGACY_SERVER_URL || "https://app.hackbox.ca",
   sentryEnabled: import.meta.env.VITE_SENTRY_ENABLED === "true",
   sentryDomain: import.meta.env.VITE_SENTRY_DOMAIN,
   sentryProjectId: import.meta.env.VITE_SENTRY_PROJECT_ID,

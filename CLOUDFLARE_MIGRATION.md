@@ -230,10 +230,14 @@ point the two relays would be essentially identical.
 
 ## Risks / open items
 
-- **Host breakage** is the only sharp edge. The transport change is a breaking,
-  versioned API change for hosts — there is no compatibility shim. In practice
-  that means shipping the hackbox-unity update and giving existing games a
-  deprecation window to adopt it before Render is turned off.
+- **Host breakage** is the sharp edge. The transport change is a breaking,
+  versioned API change for hosts (compiled Unity games can't auto-update). It's
+  softened by a **dual-protocol player client**: the web client probes the new
+  relay first and falls back to the legacy socket.io server (`app.hackbox.ca`)
+  for rooms hosted by not-yet-updated games — connecting via `socket.io-client`
+  in that case (`client/src/lib/sockets/legacySocket.ts`). So old games keep
+  working as long as the old Render server stays up; ship the hackbox-unity
+  update and give games a deprecation window to rebuild, then retire Render.
 - **No socket.io polling fallback** on raw WS. Fine for modern clients on
   Cloudflare's edge; worth noting for very restrictive networks.
 - **Async Twitch auth in `onConnect`** runs before the connection is marked
