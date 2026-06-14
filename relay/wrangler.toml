@@ -1,7 +1,11 @@
 name = "hackbox-relay"
 main = "src/index.ts"
 compatibility_date = "2026-04-09"
-workers_dev = true
+# workers_dev disabled: the relay's `/admin/*` surface (registry listing, room
+# status) must only be reachable via service bindings, never publicly. The
+# *.workers.dev URL would expose it, so the relay is reachable only via the
+# hackbox.ca/r/* zone route + service bindings.
+workers_dev = false
 
 # This worker's dependencies are installed by Workers Builds (its root directory
 # is set to relay/, which has its own package-lock.json), so no [build] step is
@@ -16,11 +20,18 @@ workers_dev = true
 routes = [{ pattern = "hackbox.ca/r/*", zone_name = "hackbox.ca" }]
 
 [durable_objects]
-bindings = [{ name = "Main", class_name = "Room" }]
+bindings = [
+  { name = "Main", class_name = "Room" },
+  { name = "Registry", class_name = "Registry" },
+]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Registry"]
 
 # TWITCH_CLIENT_ID is a secret, set via `wrangler secret put TWITCH_CLIENT_ID`
 # (not committed here). The DO reads it from `env` to authenticate members.

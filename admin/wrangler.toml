@@ -1,0 +1,29 @@
+name = "hackbox-admin"
+main = "src/index.ts"
+compatibility_date = "2026-04-09"
+# workers_dev disabled so the admin tool is reachable ONLY via the
+# Access-protected zone route below — never via a public *.workers.dev URL.
+workers_dev = false
+
+# Serve the admin tool at hackbox.ca/admin*. This route MUST be protected with a
+# Cloudflare Access (Zero Trust) application — it can create rooms and list every
+# active room, and there is no auth in the Worker code by design.
+routes = [{ pattern = "hackbox.ca/admin*", zone_name = "hackbox.ca" }]
+
+# Dependencies are installed by Workers Builds (this Worker's root directory is
+# set to admin/, which has its own package-lock.json), so no [build] step is
+# needed — wrangler bundles `main` directly.
+
+# Service binding to the relay Worker: the admin tool creates rooms (relay
+# /r/<code>/init) and lists them (relay /admin/rooms) over this binding.
+[[services]]
+binding = "RELAY"
+service = "hackbox-relay"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true

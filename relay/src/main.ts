@@ -81,6 +81,8 @@ function corsHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 interface Env {
   TWITCH_CLIENT_ID?: string;
+  // Singleton registry DO that tracks active room codes for the admin monitor.
+  Registry: DurableObjectNamespace;
 }
 
 export class Room extends Server<Env> {
@@ -129,7 +131,7 @@ export class Room extends Server<Env> {
       }
 
       const body = (await req.json().catch(() => null)) as
-        | { hostId?: string; twitchRequired?: boolean; persistent?: boolean }
+        | { hostId?: string; twitchRequired?: boolean; persistent?: boolean; closed?: boolean }
         | null;
 
       if (!body?.hostId) {
@@ -140,7 +142,7 @@ export class Room extends Server<Env> {
         hostId: body.hostId,
         twitchRequired: Boolean(body.twitchRequired),
         persistent: Boolean(body.persistent),
-        closed: false,
+        closed: Boolean(body.closed),
         createdAt: Date.now(),
       };
       this.settings = settings;
@@ -148,8 +150,17 @@ export class Room extends Server<Env> {
       if (!settings.persistent) {
         await this.ctx.storage.setAlarm(settings.createdAt + ROOM_TTL_MS);
       }
+      await this.registerWithRegistry(settings);
 
       return Response.json({ ok: true, roomCode: this.name }, { headers: corsHeaders() });
+    }
+
+    // GET .../admin/room/<code> — rich live status for the admin monitor. Only
+    // reachable via a direct DO-to-DO call from the Registry (the relay Worker's
+    // only public route is /r/*, and workers_dev is off), never from the public
+    // internet.
+    if (req.method === "GET" && url.pathname.startsWith("/admin/room/")) {
+      return this.adminStatus();
     }
 
     // GET — existence + status probe (replaces `Room.find`). Used by the client
@@ -398,9 +409,79 @@ export class Room extends Server<Env> {
     for (const conn of this.getConnections<ConnState>()) {
       this.fail(conn, "This room has expired.");
     }
+    await this.deregisterFromRegistry();
     await this.ctx.storage.deleteAll();
     this.settings = null;
     this.members.clear();
+  }
+
+  // -------------------------------------------------------------------------
+  // Admin registry + monitoring
+  // -------------------------------------------------------------------------
+  // Record this room in the singleton Registry DO so the admin monitor can
+  // enumerate it (Durable Objects aren't otherwise enumerable). Best-effort: a
+  // failed registration just means the room won't show up in the monitor; it
+  // doesn't break room creation.
+  private async registerWithRegistry(settings: RoomSettings) {
+    try {
+      const registry = this.env.Registry.get(this.env.Registry.idFromName("index"));
+      await registry.fetch(
+        new Request("https://relay/register", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code: this.name, ...settings }),
+        }),
+      );
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  private async deregisterFromRegistry() {
+    try {
+      const registry = this.env.Registry.get(this.env.Registry.idFromName("index"));
+      await registry.fetch(
+        new Request("https://relay/deregister", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code: this.name }),
+        }),
+      );
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  // Rich, live snapshot of this room for the admin monitor: settings + lifetime
+  // + presence (host connected, member roster with online status).
+  private adminStatus(): Response {
+    const onlineUserIds = new Set<string>();
+    for (const conn of this.getConnections<ConnState>()) {
+      if (conn.state?.role === "member") onlineUserIds.add(conn.state.userId);
+    }
+
+    const members = [...this.members.values()].map((r) => ({
+      userId: r.userId,
+      userName: r.userName,
+      online: onlineUserIds.has(r.userId),
+      twitch: r.metadata?.twitch?.username ?? null,
+    }));
+
+    const settings = this.settings;
+    return Response.json({
+      exists: settings !== null,
+      code: this.name,
+      hostId: settings?.hostId ?? null,
+      twitchRequired: settings?.twitchRequired ?? false,
+      persistent: settings?.persistent ?? false,
+      closed: settings?.closed ?? false,
+      createdAt: settings?.createdAt ?? null,
+      expiresAt: settings && !settings.persistent ? settings.createdAt + ROOM_TTL_MS : null,
+      hasHost: this.findHostConnection() !== null,
+      memberCount: members.length,
+      onlineCount: members.filter((m) => m.online).length,
+      members,
+    });
   }
 
   // -------------------------------------------------------------------------
