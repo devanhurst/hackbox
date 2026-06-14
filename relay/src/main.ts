@@ -197,6 +197,17 @@ export class Room extends Server<Env> {
       return this.destroy(url.searchParams.get("id"));
     }
 
+    // PATCH .../admin/room/<code> — update a live room's settings (admin edit).
+    if (req.method === "PATCH" && url.pathname.startsWith("/admin/room/")) {
+      const patch = (await req.json().catch(() => null)) as {
+        id?: string;
+        twitchRequired?: boolean;
+        persistent?: boolean;
+        closed?: boolean;
+      } | null;
+      return this.updateSettings(patch);
+    }
+
     // GET — existence + status probe (replaces `Room.find`). Used by the client
     // before connecting and by the api Worker's GET /rooms/:code. When a
     // `userId` is supplied, `isMember` reports whether that user has a record in
@@ -573,7 +584,7 @@ export class Room extends Server<Env> {
 
   // Rich, live snapshot of this room for the admin monitor: settings + lifetime
   // + presence (host connected, member roster with online status).
-  private adminStatus(): Response {
+  private async adminStatus(): Promise<Response> {
     const onlineUserIds = new Set<string>();
     for (const conn of this.getConnections<ConnState>()) {
       if (conn.state?.role === "member") onlineUserIds.add(conn.state.userId);
@@ -595,12 +606,46 @@ export class Room extends Server<Env> {
       persistent: settings?.persistent ?? false,
       closed: settings?.closed ?? false,
       createdAt: settings?.createdAt ?? null,
-      expiresAt: settings && !settings.persistent ? settings.createdAt + ROOM_TTL_MS : null,
+      // The actual scheduled DO alarm (null = none, i.e. persistent or expired).
+      // This is the source of truth that confirms the room has a live alarm.
+      expiresAt: await this.ctx.storage.getAlarm(),
       hasHost: this.findHostConnection() !== null,
       memberCount: members.length,
       onlineCount: members.filter((m) => m.online).length,
       members,
     });
+  }
+
+  // Update a live room's settings (twitchRequired / persistent / closed) and
+  // reconcile the expiry alarm: persistent rooms drop their alarm; rooms made
+  // ephemeral get a fresh 24h alarm if they don't already have one. Guarded by
+  // `id` so we don't edit a different instance sharing the code. The D1 row is
+  // updated by the admin Worker.
+  private async updateSettings(
+    body: { id?: string; twitchRequired?: boolean; persistent?: boolean; closed?: boolean } | null,
+  ): Promise<Response> {
+    if (!this.settings) {
+      return Response.json({ updated: false, reason: "not live" }, { headers: corsHeaders() });
+    }
+    if (body?.id && this.settings.id !== body.id) {
+      return Response.json({ updated: false, reason: "different instance" }, { headers: corsHeaders() });
+    }
+
+    if (typeof body?.twitchRequired === "boolean") this.settings.twitchRequired = body.twitchRequired;
+    if (typeof body?.closed === "boolean") this.settings.closed = body.closed;
+    if (typeof body?.persistent === "boolean") this.settings.persistent = body.persistent;
+    await this.ctx.storage.put("settings", this.settings);
+
+    if (this.settings.persistent) {
+      await this.ctx.storage.deleteAlarm();
+    } else if ((await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
+    }
+
+    return Response.json(
+      { updated: true, alarm: await this.ctx.storage.getAlarm() },
+      { headers: corsHeaders() },
+    );
   }
 
   // -------------------------------------------------------------------------

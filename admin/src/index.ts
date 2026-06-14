@@ -311,6 +311,39 @@ app.post("/admin/api/delete", async (c) => {
   return c.json({ ok: true, roomCode: row.code });
 });
 
+// Update a room's settings (twitchRequired / persistent / closed). Always writes
+// the D1 history row; if the room is live, also patches the Room DO (which
+// reconciles its expiry alarm to the new persistence setting).
+app.post("/admin/api/settings", async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id) return c.json({ ok: false, error: "id required" }, 400);
+
+  const row = await c.env.DB.prepare(`SELECT * FROM rooms WHERE id = ?`).bind(id).first<RoomRow>();
+  if (!row) return c.json({ ok: false, error: "room not found" }, 404);
+
+  const twitchRequired = typeof body.twitchRequired === "boolean" ? body.twitchRequired : !!row.twitch_required;
+  const persistent = typeof body.persistent === "boolean" ? body.persistent : !!row.persistent;
+  const closed = typeof body.closed === "boolean" ? body.closed : !!row.closed;
+
+  await c.env.DB.prepare(`UPDATE rooms SET twitch_required = ?, persistent = ?, closed = ? WHERE id = ?`)
+    .bind(twitchRequired ? 1 : 0, persistent ? 1 : 0, closed ? 1 : 0, id)
+    .run();
+
+  // Live room → patch the Room DO so the change (and its alarm) takes effect now.
+  if (row.ended_at == null) {
+    await c.env.RELAY.fetch(
+      new Request(`https://relay/admin/room/${row.code}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, twitchRequired, persistent, closed }),
+      }),
+    );
+  }
+
+  return c.json({ ok: true });
+});
+
 export default app;
 
 const PAGE = `<!doctype html>
@@ -470,25 +503,50 @@ const PAGE = `<!doctype html>
       if (data.ok) { closeModal(); load(); } else { alert("Delete failed: " + (data.error || res.status)); }
     } catch (e) { alert("Delete failed: " + e); }
   }
+  async function saveSettings(id) {
+    var body = { id: id, twitchRequired: $("#e_twitch").checked, persistent: $("#e_persist").checked, closed: $("#e_closed").checked };
+    try {
+      var res = await fetch("/admin/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      var data = await res.json();
+      if (data.ok) { openRoom(id); load(); } else { alert("Save failed: " + (data.error || res.status)); }
+    } catch (e) { alert("Save failed: " + e); }
+  }
 
   // --- detail modal ---
   function closeModal() { $("#modal").style.display = "none"; }
   function kv(k, v) { return '<div class="kv"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
+  function alarmCell(r) {
+    if (r.endedAt != null) return '<span class="muted">—</span>';
+    return r.expiresAt ? fmt(r.expiresAt) + ' <span class="muted">(scheduled)</span>' : '<span class="muted">none scheduled</span>';
+  }
+  function chk(id, label, on) {
+    return '<label class="chk"><input type="checkbox" id="' + id + '"' + (on ? " checked" : "") + "> " + label + "</label>";
+  }
   function renderDetail(r) {
     $("#m_title").textContent = "Room " + r.code;
     var info =
       kv("Status", statusBadge(r)) +
       kv("Members", (r.onlineCount || 0) + " online / " + (r.memberCount || 0) + " total") +
       kv("Settings", settingsBadges(r)) +
+      kv("DO alarm", alarmCell(r)) +
       kv("hostId", "<code>" + esc(r.hostId) + "</code>") +
       kv("Created", fmt(r.createdAt)) +
       kv("Ended / Expires", endCol(r)) +
       kv("Room id", "<code>" + esc(r.id) + "</code>");
+    var edit =
+      "<h3>Edit settings</h3>" +
+      '<div class="row">' +
+      chk("e_twitch", "twitchRequired", r.twitchRequired) +
+      chk("e_persist", "persistent", r.persistent) +
+      chk("e_closed", "closed", r.closed) +
+      '<button class="mini" data-save="' + esc(r.id) + '">Save settings</button>' +
+      "</div>";
     var members = (r.members || []).map(function (m) {
       return '<span class="m ' + (m.online ? "on" : "off") + '">' + esc(m.userName || m.userId) + (m.twitch ? " &middot; " + esc(m.twitch) : "") + "</span>";
     }).join(" ");
     $("#m_body").innerHTML =
       '<div class="kvs">' + info + "</div>" +
+      edit +
       "<h3>Members</h3>" +
       '<div class="members-block">' + (members || '<span class="muted">none</span>') + "</div>" +
       '<div class="modal-actions">' + actions(r) + "</div>";
@@ -540,6 +598,8 @@ const PAGE = `<!doctype html>
     if (rev) { reviveRoom(rev.getAttribute("data-revive")); return; }
     var del = e.target.closest("[data-delete]");
     if (del) { deleteRoom(del.getAttribute("data-delete")); return; }
+    var sv = e.target.closest("[data-save]");
+    if (sv) { saveSettings(sv.getAttribute("data-save")); return; }
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
