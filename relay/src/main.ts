@@ -289,6 +289,9 @@ export class Room extends Server<Env> {
 
     this.members.set(userId, record);
     await this.ctx.storage.put(`m:${userId}`, record);
+    // Record first-time joins in the permanent D1 member history (reconnects
+    // already have a record and don't add a row).
+    if (!existing) await this.recordMemberJoined(record);
 
     connection.setState({ role: "member", userId, userName });
 
@@ -453,6 +456,31 @@ export class Room extends Server<Env> {
         .run();
     } catch (e) {
       console.error(`[relay ${this.name}] D1 room insert failed`, e);
+    }
+  }
+
+  // Record a member's first join in the permanent D1 history, linked to this
+  // room *instance* (settings.id). Best-effort, like the room writes.
+  private async recordMemberJoined(record: MemberRecord) {
+    const settings = this.settings;
+    if (!settings) return;
+    try {
+      await this.env.DB.prepare(
+        `INSERT INTO members (id, room_id, room_code, user_id, user_name, created_at, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          crypto.randomUUID(),
+          settings.id,
+          this.name,
+          record.userId,
+          record.userName,
+          Date.now(),
+          record.metadata ? JSON.stringify(record.metadata) : null,
+        )
+        .run();
+    } catch (e) {
+      console.error(`[relay ${this.name}] D1 member insert failed`, e);
     }
   }
 
