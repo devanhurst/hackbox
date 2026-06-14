@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 
-// hackbox admin Worker — a single self-contained page to create rooms with all
-// settings, import existing rooms (e.g. the migrated persistent room), and
-// monitor every room. The room listing is permanent history read from D1; live
+// hackbox admin Worker — create rooms with all settings, monitor every room, and
+// revive/delete them. The room listing is permanent history read from D1; live
 // presence for active rooms is fetched from the relay over the service binding.
 //
-// It is **not** auth-gated in code: the route (hackbox.ca/admin*) is protected
-// by Cloudflare Access (Zero Trust), and the relay's admin surface is reachable
-// only via the service binding below.
+// Not auth-gated in code: the route (hackbox.ca/admin*) is protected by
+// Cloudflare Access, and the relay's admin surface is reachable only via the
+// service binding below.
 
 interface Env {
   RELAY: Fetcher; // service binding to hackbox-relay
@@ -27,7 +26,6 @@ interface RoomRow {
 }
 
 interface MemberRow {
-  room_id: string;
   user_id: string;
   user_name: string;
   metadata: string | null;
@@ -38,27 +36,6 @@ interface AdminMember {
   userName: string;
   twitch: string | null;
   online: boolean;
-}
-
-// Parse a member's stored metadata JSON back into an object for the relay.
-function parseMetadata(metadata: string | null): unknown {
-  if (!metadata) return undefined;
-  try {
-    return JSON.parse(metadata);
-  } catch {
-    return undefined;
-  }
-}
-
-// Pull a twitch display name out of a member's stored metadata JSON, if any.
-function twitchName(metadata: string | null): string | null {
-  if (!metadata) return null;
-  try {
-    const m = JSON.parse(metadata) as { twitch?: { username?: string } };
-    return m?.twitch?.username ?? null;
-  } catch {
-    return null;
-  }
 }
 
 const CONSONANTS = "BCDFGHJKLMNPQRSTVWXZ".split("");
@@ -74,7 +51,6 @@ interface RoomSettings {
   closed: boolean;
 }
 
-// Ask the relay to initialise a room with a specific code + settings.
 function initRoom(relay: Fetcher, code: string, settings: RoomSettings): Promise<Response> {
   return relay.fetch(
     new Request(`https://relay/r/${code}/init`, {
@@ -83,6 +59,25 @@ function initRoom(relay: Fetcher, code: string, settings: RoomSettings): Promise
       body: JSON.stringify(settings),
     }),
   );
+}
+
+function twitchName(metadata: string | null): string | null {
+  if (!metadata) return null;
+  try {
+    const m = JSON.parse(metadata) as { twitch?: { username?: string } };
+    return m?.twitch?.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function parseMetadata(metadata: string | null): unknown {
+  if (!metadata) return undefined;
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return undefined;
+  }
 }
 
 function mapRow(r: RoomRow) {
@@ -99,14 +94,61 @@ function mapRow(r: RoomRow) {
   };
 }
 
+async function fetchMembers(db: D1Database, roomId: string): Promise<AdminMember[]> {
+  const { results } = await db
+    .prepare(`SELECT user_id, user_name, metadata FROM members WHERE room_id = ?`)
+    .bind(roomId)
+    .all<MemberRow>();
+  return results.map((m) => ({
+    userId: m.user_id,
+    userName: m.user_name,
+    twitch: twitchName(m.metadata),
+    online: false,
+  }));
+}
+
+// Overlay live presence from the relay onto a room's D1 roster: flips members
+// online, merges in any currently-connected members not yet flushed to D1, and
+// returns live/host/expiry. Mutates `members`.
+async function overlayPresence(
+  env: Env,
+  code: string,
+  members: AdminMember[],
+): Promise<{ live: boolean; hasHost: boolean; expiresAt: number | null }> {
+  try {
+    const res = await env.RELAY.fetch(new Request(`https://relay/admin/room/${code}`));
+    if (res.ok) {
+      const p = (await res.json()) as {
+        exists?: boolean;
+        hasHost?: boolean;
+        expiresAt?: number | null;
+        members?: { userId: string; userName: string; online: boolean; twitch: string | null }[];
+      };
+      const byId = new Map(members.map((m) => [m.userId, m]));
+      for (const lm of p.members ?? []) {
+        let m = byId.get(lm.userId);
+        if (!m) {
+          m = { userId: lm.userId, userName: lm.userName, twitch: lm.twitch ?? null, online: false };
+          members.push(m);
+          byId.set(lm.userId, m);
+        }
+        if (lm.online) m.online = true;
+      }
+      return { live: p.exists !== false, hasHost: Boolean(p.hasHost), expiresAt: p.expiresAt ?? null };
+    }
+  } catch {
+    /* fall through */
+  }
+  return { live: false, hasHost: false, expiresAt: null };
+}
+
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/admin", (c) => c.html(PAGE));
 app.get("/admin/", (c) => c.html(PAGE));
 
-// Listing = permanent history from D1, newest first. Every room shows its member
-// roster from the D1 `members` table; active rooms (no ended_at) are additionally
-// overlaid with live presence (online status, host connected) from the relay.
+// Listing = permanent history from D1, newest first. Returns counts only (the
+// per-room roster is fetched on demand by the detail view).
 app.get("/admin/api/rooms", async (c) => {
   let results: RoomRow[];
   try {
@@ -118,8 +160,7 @@ app.get("/admin/api/rooms", async (c) => {
     return c.json({ rooms: [], error: `D1 query failed: ${e}` }, 500);
   }
 
-  // Member rosters for all listed rooms, fetched in a single query and grouped
-  // by room instance.
+  // Member rosters for all listed rooms, in a single query, grouped by room.
   const membersByRoom = new Map<string, AdminMember[]>();
   if (results.length) {
     const placeholders = results.map(() => "?").join(",");
@@ -127,7 +168,7 @@ app.get("/admin/api/rooms", async (c) => {
       `SELECT room_id, user_id, user_name, metadata FROM members WHERE room_id IN (${placeholders})`,
     )
       .bind(...results.map((r) => r.id))
-      .all<MemberRow>();
+      .all<MemberRow & { room_id: string }>();
     for (const m of memberRows) {
       const list = membersByRoom.get(m.room_id) ?? [];
       list.push({ userId: m.user_id, userName: m.user_name, twitch: twitchName(m.metadata), online: false });
@@ -138,48 +179,18 @@ app.get("/admin/api/rooms", async (c) => {
   const rooms = await Promise.all(
     results.map(async (raw) => {
       const room = mapRow(raw);
-      const members: AdminMember[] = membersByRoom.get(room.id) ?? [];
+      const members = membersByRoom.get(room.id) ?? [];
       let live = false;
       let hasHost = false;
       let expiresAt: number | null = null;
-
-      // Active per D1 — overlay live presence from the relay (online status +
-      // host), merging in any currently-connected members not yet in D1.
       if (room.endedAt == null) {
-        try {
-          const res = await c.env.RELAY.fetch(new Request(`https://relay/admin/room/${room.code}`));
-          if (res.ok) {
-            const p = (await res.json()) as {
-              exists?: boolean;
-              hasHost?: boolean;
-              expiresAt?: number | null;
-              members?: { userId: string; userName: string; online: boolean; twitch: string | null }[];
-            };
-            live = p.exists !== false;
-            hasHost = Boolean(p.hasHost);
-            expiresAt = p.expiresAt ?? null;
-            const byId = new Map(members.map((m) => [m.userId, m]));
-            for (const lm of p.members ?? []) {
-              let m = byId.get(lm.userId);
-              if (!m) {
-                m = { userId: lm.userId, userName: lm.userName, twitch: lm.twitch ?? null, online: false };
-                members.push(m);
-                byId.set(lm.userId, m);
-              }
-              if (lm.online) m.online = true;
-            }
-          }
-        } catch {
-          /* fall through with the static D1 roster */
-        }
+        ({ live, hasHost, expiresAt } = await overlayPresence(c.env, room.code, members));
       }
-
       return {
         ...room,
         live: room.endedAt == null ? live : false,
         hasHost,
         expiresAt,
-        members,
         memberCount: members.length,
         onlineCount: members.filter((m) => m.online).length,
       };
@@ -187,6 +198,34 @@ app.get("/admin/api/rooms", async (c) => {
   );
 
   return c.json({ rooms });
+});
+
+// Detail = a single room with its full member roster (+ live presence if active).
+app.get("/admin/api/room/:id", async (c) => {
+  const id = c.req.param("id");
+  const raw = await c.env.DB.prepare(`SELECT * FROM rooms WHERE id = ?`).bind(id).first<RoomRow>();
+  if (!raw) return c.json({ error: "not found" }, 404);
+
+  const room = mapRow(raw);
+  const members = await fetchMembers(c.env.DB, id);
+  let live = false;
+  let hasHost = false;
+  let expiresAt: number | null = null;
+  if (room.endedAt == null) {
+    ({ live, hasHost, expiresAt } = await overlayPresence(c.env, room.code, members));
+  }
+
+  return c.json({
+    room: {
+      ...room,
+      live: room.endedAt == null ? live : false,
+      hasHost,
+      expiresAt,
+      members,
+      memberCount: members.length,
+      onlineCount: members.filter((m) => m.online).length,
+    },
+  });
 });
 
 // Create a room with all settings (random code). hostId generated if absent.
@@ -211,10 +250,8 @@ app.post("/admin/api/rooms", async (c) => {
   return c.json({ ok: false, error: "could not allocate a room code" }, 503);
 });
 
-// Revive a room straight from the history table, restoring it *in place*:
-// re-create the live Room DO at its code, reusing the same history row id and
-// seeding its members back from D1. No new row is created — the same instance
-// comes back to life.
+// Revive a room in place: re-create the live Room DO at its code, reusing the
+// same history row id and seeding its members back from D1. No new row.
 app.post("/admin/api/revive", async (c) => {
   const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
   const id = typeof body.id === "string" ? body.id : "";
@@ -227,8 +264,7 @@ app.post("/admin/api/revive", async (c) => {
     `SELECT user_id, user_name, metadata FROM members WHERE room_id = ?`,
   )
     .bind(id)
-    .all<{ user_id: string; user_name: string; metadata: string | null }>();
-
+    .all<MemberRow>();
   const members = memberRows.map((m) => ({
     userId: m.user_id,
     userName: m.user_name,
@@ -266,12 +302,9 @@ app.post("/admin/api/delete", async (c) => {
   const row = await c.env.DB.prepare(`SELECT code FROM rooms WHERE id = ?`).bind(id).first<{ code: string }>();
   if (!row) return c.json({ ok: false, error: "room not found" }, 404);
 
-  // Tear down the live DO if this row is the active instance at that code.
   await c.env.RELAY.fetch(
     new Request(`https://relay/admin/room/${row.code}?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   );
-
-  // Remove the history rows.
   await c.env.DB.prepare(`DELETE FROM members WHERE room_id = ?`).bind(id).run();
   await c.env.DB.prepare(`DELETE FROM rooms WHERE id = ?`).bind(id).run();
 
@@ -299,21 +332,23 @@ const PAGE = `<!doctype html>
   label.chk { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   input[type=text] { background: #0e0820; border: 1px solid #2e1f4d; color: #eee; padding: 8px 10px; border-radius: 5px; font: inherit; }
   input.wide { min-width: 320px; }
-  input.code { width: 90px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
   button { background: #7c2fec; color: #fff; border: 0; border-radius: 5px; padding: 8px 14px; font: inherit; font-weight: 700; cursor: pointer; }
   button.sec { background: #2e1f4d; }
-  button.mini { padding: 2px 8px; font-size: 11px; font-weight: 700; background: #2e1f4d; margin-left: 6px; }
+  button.mini { padding: 3px 10px; font-size: 12px; font-weight: 700; background: #2e1f4d; }
   button.danger { background: #5e2030; }
   button:disabled { opacity: .5; cursor: default; }
   .note { display: none; margin-top: 12px; padding: 10px 12px; background: #14331f; border: 1px solid #2c6e49; border-radius: 6px; }
   .note.err { background: #331616; border-color: #6e2c2c; }
-  code { background: #0e0820; padding: 1px 5px; border-radius: 4px; }
+  code { background: #0e0820; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 12px; }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
-  th { text-align: left; color: #9b86c9; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #2e1f4d; font-size: 12px; text-transform: uppercase; }
-  td { padding: 6px 8px; border-bottom: 1px solid #20153a; vertical-align: top; }
+  th { text-align: left; color: #9b86c9; font-weight: 600; padding: 8px; border-bottom: 1px solid #2e1f4d; font-size: 12px; text-transform: uppercase; }
+  td { padding: 8px; border-bottom: 1px solid #20153a; vertical-align: middle; }
   td.code { font-weight: 800; font-size: 16px; letter-spacing: .08em; }
+  td.actions { text-align: right; white-space: nowrap; }
+  td.actions button { margin-left: 6px; }
   .muted { color: #7d6ca5; }
-  .hostId { font-family: ui-monospace, monospace; font-size: 12px; }
+  a.link { color: #d7c8fb; cursor: pointer; text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
   .b { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
   .b.on { background: #2c6e49; color: #b7f7cf; }
   .b.off { background: #2e1f4d; color: #8c7bb5; }
@@ -322,6 +357,17 @@ const PAGE = `<!doctype html>
   .m.on { background: #21412c; color: #bdf0cf; }
   .m.off { background: #241a3a; color: #8c7bb5; }
   .toolbar { display: flex; gap: 14px; align-items: center; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); align-items: flex-start; justify-content: center; padding: 40px 16px; overflow: auto; z-index: 50; }
+  .modal { background: #1c1233; border: 1px solid #2e1f4d; border-radius: 10px; width: 100%; max-width: 760px; padding: 18px; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+  .kvs { display: grid; grid-template-columns: max-content 1fr; gap: 7px 18px; margin-bottom: 16px; }
+  .kv { display: contents; }
+  .kv .k { color: #9b86c9; font-size: 13px; }
+  .kv .v { font-size: 14px; }
+  .modal h3 { font-size: 12px; text-transform: uppercase; color: #c9b6f5; margin: 8px 0; }
+  .members-block { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 16px; max-height: 320px; overflow: auto; }
+  .modal-actions { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
@@ -347,12 +393,20 @@ const PAGE = `<!doctype html>
   </div>
   <table>
     <thead><tr>
-      <th>Code</th><th>Status</th><th>Online/Total</th><th>Settings</th>
-      <th>Created</th><th>Ended / Expires</th><th>Members</th>
+      <th>Code</th><th>Status</th><th>Members</th><th>Settings</th>
+      <th>Created</th><th>Ended / Expires</th><th></th>
     </tr></thead>
     <tbody id="rooms"></tbody>
   </table>
 </main>
+
+<div id="modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-head"><span id="m_title"></span><button class="sec" id="m_close">Close</button></div>
+    <div id="m_body"></div>
+  </div>
+</div>
+
 <script>
   var $ = function (s) { return document.querySelector(s); };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
@@ -366,82 +420,105 @@ const PAGE = `<!doctype html>
     el.innerHTML = msg;
   }
 
-  $("#gen").onclick = function () { $("#hostId").value = crypto.randomUUID(); };
+  function statusBadge(r) {
+    if (r.endedAt != null) return badge(false, "ended", "end");
+    if (r.live === false) return badge(false, "gone");
+    return r.hasHost ? badge(true, "host connected") : badge(false, "no host");
+  }
+  function settingsBadges(r) {
+    return badge(r.twitchRequired, "twitch") + " " + badge(r.persistent, "persist") + " " + badge(r.closed, "closed");
+  }
+  function endCol(r) {
+    if (r.endedAt != null) return fmt(r.endedAt) + ' <span class="muted">(' + esc(r.endReason || "ended") + ")</span>";
+    return r.persistent ? '<span class="muted">never</span>' : fmt(r.expiresAt);
+  }
+  function actions(r) {
+    var live = r.endedAt == null && r.live !== false;
+    var revive = live ? "" : '<button class="mini" data-revive="' + esc(r.id) + '">revive</button>';
+    var del = '<button class="mini danger" data-delete="' + esc(r.id) + '">delete</button>';
+    return revive + del;
+  }
 
+  // --- create ---
+  $("#gen").onclick = function () { $("#hostId").value = crypto.randomUUID(); };
   $("#create").onclick = async function () {
-    var body = {
-      hostId: $("#hostId").value.trim(),
-      twitchRequired: $("#twitchRequired").checked,
-      persistent: $("#persistent").checked,
-      closed: $("#closed").checked
-    };
+    var body = { hostId: $("#hostId").value.trim(), twitchRequired: $("#twitchRequired").checked, persistent: $("#persistent").checked, closed: $("#closed").checked };
     $("#create").disabled = true;
     try {
       var res = await fetch("/admin/api/rooms", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       var data = await res.json();
-      if (data.ok) {
-        note("#created", "Room <b>" + esc(data.roomCode) + "</b> created &middot; hostId <code>" + esc(data.hostId) + "</code>", false);
-        load();
-      } else {
-        note("#created", "Create failed: " + esc(data.error || res.status), true);
-      }
+      if (data.ok) { note("#created", "Room <b>" + esc(data.roomCode) + "</b> created &middot; hostId <code>" + esc(data.hostId) + "</code>", false); load(); }
+      else { note("#created", "Create failed: " + esc(data.error || res.status), true); }
     } catch (e) { note("#created", "Create failed: " + esc(e), true); }
     finally { $("#create").disabled = false; }
   };
 
+  // --- actions ---
   async function reviveRoom(id) {
-    if (!confirm("Revive this room? It re-creates a live room at this code with its saved settings.")) return;
+    if (!confirm("Revive this room? It re-creates a live room at this code with its saved settings and members.")) return;
     try {
       var res = await fetch("/admin/api/revive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: id }) });
       var data = await res.json();
-      if (data.ok) { load(); }
-      else { alert("Revive failed: " + (data.error || res.status)); }
+      if (data.ok) { closeModal(); load(); } else { alert("Revive failed: " + (data.error || res.status)); }
     } catch (e) { alert("Revive failed: " + e); }
   }
-
   async function deleteRoom(id) {
     if (!confirm("Delete this room entirely? This destroys the live room (freeing its code) and removes it and its members from history. This cannot be undone.")) return;
     try {
       var res = await fetch("/admin/api/delete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: id }) });
       var data = await res.json();
-      if (data.ok) { load(); }
-      else { alert("Delete failed: " + (data.error || res.status)); }
+      if (data.ok) { closeModal(); load(); } else { alert("Delete failed: " + (data.error || res.status)); }
     } catch (e) { alert("Delete failed: " + e); }
   }
 
-  function statusCell(r) {
-    var live = r.endedAt == null && r.live !== false;
-    var b = r.endedAt != null ? badge(false, "ended", "end")
-      : r.live === false ? badge(false, "gone")
-      : r.hasHost ? badge(true, "host connected") : badge(false, "no host");
-    // Revive any room that isn't currently live; delete is always available
-    // (delegated click handlers below).
-    var revive = live ? "" : ' <button class="mini" data-revive="' + esc(r.id) + '">revive</button>';
-    var del = ' <button class="mini danger" data-delete="' + esc(r.id) + '">delete</button>';
-    return b + revive + del;
-  }
-
-  function row(r) {
-    // Members come from the permanent D1 roster (so ended rooms show them too);
-    // online status is overlaid for active rooms.
+  // --- detail modal ---
+  function closeModal() { $("#modal").style.display = "none"; }
+  function kv(k, v) { return '<div class="kv"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
+  function renderDetail(r) {
+    $("#m_title").textContent = "Room " + r.code;
+    var info =
+      kv("Status", statusBadge(r)) +
+      kv("Members", (r.onlineCount || 0) + " online / " + (r.memberCount || 0) + " total") +
+      kv("Settings", settingsBadges(r)) +
+      kv("hostId", "<code>" + esc(r.hostId) + "</code>") +
+      kv("Created", fmt(r.createdAt)) +
+      kv("Ended / Expires", endCol(r)) +
+      kv("Room id", "<code>" + esc(r.id) + "</code>");
     var members = (r.members || []).map(function (m) {
       return '<span class="m ' + (m.online ? "on" : "off") + '">' + esc(m.userName || m.userId) + (m.twitch ? " &middot; " + esc(m.twitch) : "") + "</span>";
     }).join(" ");
-    var endCol = r.endedAt != null
-      ? fmt(r.endedAt) + ' <span class="muted">(' + esc(r.endReason || "ended") + ")</span>"
-      : (r.persistent ? '<span class="muted">never</span>' : fmt(r.expiresAt));
-    return "<tr>" +
-      '<td class="code">' + esc(r.code) + "</td>" +
-      "<td>" + statusCell(r) + "</td>" +
-      "<td>" + (r.onlineCount || 0) + " / " + (r.memberCount || 0) + "</td>" +
-      "<td>" + badge(r.twitchRequired, "twitch") + " " + badge(r.persistent, "persist") + " " + badge(r.closed, "closed") + "</td>" +
-      '<td class="muted">' + fmt(r.createdAt) + "</td>" +
-      '<td class="muted">' + endCol + "</td>" +
-      "<td>" + (members || '<span class="muted">—</span>') + "</td>" +
-      "</tr>" +
-      '<tr><td></td><td colspan="6" class="hostId muted">hostId ' + esc(r.hostId) + "</td></tr>";
+    $("#m_body").innerHTML =
+      '<div class="kvs">' + info + "</div>" +
+      "<h3>Members</h3>" +
+      '<div class="members-block">' + (members || '<span class="muted">none</span>') + "</div>" +
+      '<div class="modal-actions">' + actions(r) + "</div>";
   }
+  async function openRoom(id) {
+    $("#modal").style.display = "flex";
+    $("#m_title").textContent = "Room";
+    $("#m_body").innerHTML = '<div class="muted">Loading…</div>';
+    try {
+      var res = await fetch("/admin/api/room/" + encodeURIComponent(id));
+      var data = await res.json();
+      if (data.room) renderDetail(data.room);
+      else $("#m_body").innerHTML = '<div class="muted">Not found.</div>';
+    } catch (e) { $("#m_body").innerHTML = '<div class="muted">Failed to load.</div>'; }
+  }
+  $("#m_close").onclick = closeModal;
+  $("#modal").addEventListener("click", function (e) { if (e.target === $("#modal")) closeModal(); });
 
+  // --- table ---
+  function row(r) {
+    return "<tr>" +
+      '<td class="code"><a class="link" data-room="' + esc(r.id) + '">' + esc(r.code) + "</a></td>" +
+      "<td>" + statusBadge(r) + "</td>" +
+      "<td>" + (r.onlineCount || 0) + " / " + (r.memberCount || 0) + "</td>" +
+      "<td>" + settingsBadges(r) + "</td>" +
+      '<td class="muted">' + fmt(r.createdAt) + "</td>" +
+      '<td class="muted">' + endCol(r) + "</td>" +
+      '<td class="actions">' + actions(r) + "</td>" +
+      "</tr>";
+  }
   async function load() {
     try {
       var res = await fetch("/admin/api/rooms");
@@ -454,6 +531,18 @@ const PAGE = `<!doctype html>
     }
   }
 
+  // Delegated clicks for room links + per-row/modal action buttons.
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) return;
+    var link = e.target.closest("[data-room]");
+    if (link) { openRoom(link.getAttribute("data-room")); return; }
+    var rev = e.target.closest("[data-revive]");
+    if (rev) { reviveRoom(rev.getAttribute("data-revive")); return; }
+    var del = e.target.closest("[data-delete]");
+    if (del) { deleteRoom(del.getAttribute("data-delete")); return; }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+
   var timer = null;
   function setAuto(on) {
     if (timer) { clearInterval(timer); timer = null; }
@@ -461,14 +550,6 @@ const PAGE = `<!doctype html>
   }
   $("#auto").onchange = function (e) { setAuto(e.target.checked); };
   $("#refresh").onclick = load;
-  // Delegated handlers for the per-row revive / delete buttons.
-  $("#rooms").addEventListener("click", function (e) {
-    if (!e.target.closest) return;
-    var rev = e.target.closest("[data-revive]");
-    if (rev) { reviveRoom(rev.getAttribute("data-revive")); return; }
-    var del = e.target.closest("[data-delete]");
-    if (del) { deleteRoom(del.getAttribute("data-delete")); }
-  });
   setAuto(true);
   load();
 </script>
