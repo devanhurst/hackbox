@@ -1,0 +1,16 @@
+# Nuxt
+.nuxt
+.output
+.data
+dist
+
+# Wrangler
+.wrangler
+
+# Deps
+node_modules
+
+# Logs / env
+*.log
+.env
+.dev.vars
