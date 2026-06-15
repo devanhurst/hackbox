@@ -1,18 +1,29 @@
 name = "hackbox-admin"
-main = "src/index.ts"
+# Nuxt builds a Cloudflare Worker via the Nitro `cloudflare_module` preset; its
+# entry + static assets land under .output (see nuxt.config.ts).
+main = "./.output/server/index.mjs"
 compatibility_date = "2026-04-09"
+compatibility_flags = ["nodejs_compat"]
+
 # workers_dev disabled so the admin tool is reachable ONLY via the
-# Access-protected zone route below — never via a public *.workers.dev URL.
+# Access-protected custom domain below — never via a public *.workers.dev URL.
 workers_dev = false
 
 # Serve the admin tool at hackbox.ca/admin*. This route MUST be protected with a
 # Cloudflare Access (Zero Trust) application — it can create rooms and list every
-# active room, and there is no auth in the Worker code by design.
+# active room, and there is no auth in the Worker code by design. The Nuxt app is
+# served under the /admin base path (see app.baseURL in nuxt.config.ts).
 routes = [{ pattern = "hackbox.ca/admin*", zone_name = "hackbox.ca" }]
 
-# Dependencies are installed by Workers Builds (this Worker's root directory is
-# set to admin/, which has its own package-lock.json), so no [build] step is
-# needed — wrangler bundles `main` directly.
+[assets]
+directory = "./.output/public"
+binding = "ASSETS"
+
+# NOTE: no [build] here. The Nuxt build (`npm run build`) must run before deploy
+# — locally the `deploy` npm script chains it, and in Workers Builds it's the
+# dashboard "Build command". Keeping it out of this file prevents Nitro from
+# copying it into the generated .output config (which would re-trigger the build
+# recursively). Workers Builds (root dir admin/) deploys on pushes under admin/.
 
 # Service binding to the relay Worker: the admin tool creates/imports rooms
 # (relay /r/<code>/init) and fetches live presence (relay /admin/room/<code>).
