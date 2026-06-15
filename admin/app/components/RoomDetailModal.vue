@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { AdminRoom, RoomResponse } from "~/types";
+import type { TableColumn } from "@nuxt/ui";
+import type { AdminMember, AdminRoom, RoomResponse } from "~/types";
 
 const open = defineModel<boolean>("open", { required: true });
 const props = defineProps<{ roomId: string | null }>();
@@ -11,6 +12,13 @@ const apiUrl = useApi();
 
 const room = ref<AdminRoom | null>(null);
 const loading = ref(false);
+
+const memberColumns: TableColumn<AdminMember>[] = [
+  { id: "status", header: "" },
+  { accessorKey: "userName", header: "Name" },
+  { accessorKey: "twitch", header: "Twitch" },
+  { accessorKey: "userId", header: "User ID" },
+];
 
 // Edit-settings form state, seeded from the loaded room.
 const edit = reactive({ twitchRequired: false, persistent: false, closed: false });
@@ -131,17 +139,30 @@ const info = computed(() => {
           <h3 class="text-xs uppercase tracking-wide text-primary-400 mb-2">
             Members ({{ room.members?.length || 0 }})
           </h3>
-          <div class="flex flex-wrap gap-1 max-h-72 overflow-auto">
-            <UBadge
-              v-for="m in room.members"
-              :key="m.userId"
-              :color="m.online ? 'success' : 'neutral'"
-              variant="subtle"
-              size="sm"
-            >
-              {{ m.userName || m.userId }}<span v-if="m.twitch"> · {{ m.twitch }}</span>
-            </UBadge>
-            <span v-if="!room.members?.length" class="text-muted text-sm">none</span>
+          <div class="max-h-72 overflow-auto">
+            <UTable :data="room.members ?? []" :columns="memberColumns" :empty="'No members yet.'">
+              <template #status-cell="{ row }">
+                <UBadge
+                  :color="row.original.online ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                >
+                  {{ row.original.online ? "online" : "offline" }}
+                </UBadge>
+              </template>
+
+              <template #userName-cell="{ row }">
+                {{ row.original.userName || "—" }}
+              </template>
+
+              <template #twitch-cell="{ row }">
+                {{ row.original.twitch || "—" }}
+              </template>
+
+              <template #userId-cell="{ row }">
+                <span class="font-mono text-xs text-muted">{{ row.original.userId }}</span>
+              </template>
+            </UTable>
           </div>
         </div>
       </div>
