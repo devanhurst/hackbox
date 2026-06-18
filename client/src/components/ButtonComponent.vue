@@ -14,6 +14,9 @@ const props = mergeProps(
     label: "A: 42",
     value: "A",
     keys: ["A", "1"],
+    // When true the button never disables after a press, so it can be tapped
+    // repeatedly without the host re-pushing state to re-arm it.
+    persistent: false,
   },
   custom,
 );
@@ -27,7 +30,7 @@ const state: State = reactive({
 });
 
 const respond = () => {
-  state.submitted = true;
+  if (!props.persistent) state.submitted = true;
 
   socket.emit("msg", {
     event: props.event,
@@ -47,6 +50,7 @@ onMounted(() => {
     :label="props.label"
     :keys="props.keys"
     :style="props.style"
+    :persistent="props.persistent"
     :disabled="state.submitted"
   ></choice-button>
 </template>
