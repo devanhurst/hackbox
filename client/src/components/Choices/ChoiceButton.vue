@@ -21,6 +21,9 @@ export interface Props {
   style: Partial<StyleProps>;
   keys?: string[];
   onSelect?: () => void;
+  // Repeatable button: fire on every press without latching into a
+  // selected/disabled state, so the host needn't re-push to re-arm it.
+  persistent?: boolean;
 }
 
 export interface State {
@@ -57,6 +60,7 @@ const customProps = withDefaults(defineProps<Props>(), {
   label: () => "",
   keys: () => [],
   style: () => ({}),
+  persistent: false,
 });
 
 const props = {
@@ -85,6 +89,11 @@ const handleKeydown = (event: KeyboardEvent) => {
 };
 
 const handleSelect = () => {
+  if (props.persistent) {
+    // Stay enabled so the player can press again and again.
+    props.onSelect();
+    return;
+  }
   state.selected = !state.selected;
   props.onSelect();
 };
