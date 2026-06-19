@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "PORT=9002 nuxt dev",
-    "build": "nuxt generate",
+    "build": "rm -rf .output .wrangler dist && nuxt generate",
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "postinstall": "nuxt prepare"
