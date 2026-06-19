@@ -103,6 +103,39 @@ export async function fetchMembers(db: D1Database, roomId: string): Promise<Admi
   }));
 }
 
+// D1/SQLite caps a single statement at 100 bound variables, so an
+// `IN (?, ?, …)` over every listed room overflows once history grows past ~100
+// rooms. Chunk the ids under that cap and merge the rosters by room id.
+const D1_MAX_VARIABLES = 90;
+
+export async function fetchMembersByRoom(
+  db: D1Database,
+  roomIds: string[],
+): Promise<Map<string, AdminMember[]>> {
+  const byRoom = new Map<string, AdminMember[]>();
+  for (let i = 0; i < roomIds.length; i += D1_MAX_VARIABLES) {
+    const chunk = roomIds.slice(i, i + D1_MAX_VARIABLES);
+    const placeholders = chunk.map(() => "?").join(",");
+    const { results } = await db
+      .prepare(
+        `SELECT room_id, user_id, user_name, metadata FROM members WHERE room_id IN (${placeholders})`,
+      )
+      .bind(...chunk)
+      .all<MemberRow & { room_id: string }>();
+    for (const m of results) {
+      const list = byRoom.get(m.room_id) ?? [];
+      list.push({
+        userId: m.user_id,
+        userName: m.user_name,
+        twitch: twitchName(m.metadata),
+        online: false,
+      });
+      byRoom.set(m.room_id, list);
+    }
+  }
+  return byRoom;
+}
+
 // Overlay live presence from the relay onto a room's D1 roster: flips members
 // online, merges in any currently-connected members not yet flushed to D1, and
 // returns live/host/expiry. Mutates `members`.

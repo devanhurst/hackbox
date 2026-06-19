@@ -1,11 +1,4 @@
-import {
-  type AdminMember,
-  type MemberRow,
-  type RoomRow,
-  mapRow,
-  overlayPresence,
-  twitchName,
-} from "../utils/rooms";
+import { type RoomRow, fetchMembersByRoom, mapRow, overlayPresence } from "../utils/rooms";
 
 // Listing = permanent history from D1, newest first. Returns counts only (the
 // per-room roster is fetched on demand by the detail view).
@@ -23,26 +16,12 @@ export default defineEventHandler(async (event) => {
     return { rooms: [], error: `D1 query failed: ${e}` };
   }
 
-  // Member rosters for all listed rooms, in a single query, grouped by room.
-  const membersByRoom = new Map<string, AdminMember[]>();
-  if (results.length) {
-    const placeholders = results.map(() => "?").join(",");
-    const { results: memberRows } = await env.DB.prepare(
-      `SELECT room_id, user_id, user_name, metadata FROM members WHERE room_id IN (${placeholders})`,
-    )
-      .bind(...results.map((r) => r.id))
-      .all<MemberRow & { room_id: string }>();
-    for (const m of memberRows) {
-      const list = membersByRoom.get(m.room_id) ?? [];
-      list.push({
-        userId: m.user_id,
-        userName: m.user_name,
-        twitch: twitchName(m.metadata),
-        online: false,
-      });
-      membersByRoom.set(m.room_id, list);
-    }
-  }
+  // Member rosters for all listed rooms, grouped by room. Chunked under D1's
+  // bound-variable cap so large histories don't blow the IN (...) clause.
+  const membersByRoom = await fetchMembersByRoom(
+    env.DB,
+    results.map((r) => r.id),
+  );
 
   const rooms = await Promise.all(
     results.map(async (raw) => {
