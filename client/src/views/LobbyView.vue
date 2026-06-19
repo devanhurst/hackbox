@@ -170,6 +170,10 @@ updateRoom();
         </div>
 
         <button @click="joinGame" :disabled="!canJoin">PLAY</button>
+
+        <a class="host-link" href="https://hackbox.ca/docs" target="_blank" rel="noopener">
+          Host a game
+        </a>
       </div>
     </section>
   </div>
@@ -321,7 +325,7 @@ button:hover:not(:disabled) {
   display: flex;
   justify-content: center;
   margin-top: 30px;
-  color: #7c2fec;
+  color: #ddd;
   font-size: 12px;
   text-decoration: none;
 }
