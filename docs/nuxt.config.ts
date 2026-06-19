@@ -27,6 +27,15 @@ export default defineNuxtConfig({
     enabled: false,
   },
   nitro: {
+    // Force the pure-static preset. On Cloudflare Workers Builds, Nitro otherwise
+    // auto-detects the CF environment and switches to the `cloudflare-module`
+    // (SSR) preset even under `nuxt generate` — emitting a server entry plus a
+    // `.wrangler/deploy/config.json` that redirects `wrangler deploy` to a
+    // `.output/server/index.mjs` it never produces, and overriding the [assets]
+    // in wrangler.toml. We deploy as a pure assets-only Worker (prerendered HTML
+    // + the @nuxt/content WASM dump), so pin the static preset to keep CI
+    // matching local and let `wrangler deploy` use wrangler.toml.
+    preset: "static",
     // The site is served at hackbox.ca/docs* by a static-assets Worker, which
     // matches request paths to files literally. Nitro strips the /docs/ baseURL
     // when writing files, so emit the public output INTO a physical dist/docs/
