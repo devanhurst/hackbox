@@ -16,7 +16,7 @@ Hackbox is a real-time multiplayer game framework that allows you to create game
   ---
   color: neutral
   size: xl
-  to: /docs/getting-started
+  to: /basics/getting-started
   trailing-icon: i-lucide-arrow-right
   ---
   Get started

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import markdown from "@/lib/markdown";
 import { computed } from "vue";
-import { mergeProps } from "@/lib/helpers";
+import { applyLegacyAlign, mergeProps } from "@/lib/helpers";
 
 const { custom } = defineProps(["custom"]);
 const props = mergeProps(
@@ -9,7 +9,7 @@ const props = mergeProps(
     text: "Sample Text",
     style: {
       color: "black",
-      align: "center",
+      textAlign: "center",
       background: "white",
       border: "4px solid black",
       width: "auto",
@@ -24,29 +24,23 @@ const props = mergeProps(
 );
 
 const text = computed(() => markdown(props.text));
+// `align` is a deprecated alias for `textAlign` (see applyLegacyAlign).
+const style = computed(() => applyLegacyAlign(props.style));
 </script>
 
 <template>
-  <div class="textbox" v-html="text"></div>
+  <div class="textbox" :style="style" v-html="text"></div>
 </template>
 
 <style scoped>
+/* The host's style object is applied inline above (any standard CSS). Only
+   structural layout lives here. */
 .textbox {
   display: flex;
-  width: v-bind("props.style.width");
-  border: v-bind("props.style.border");
-  justify-content: v-bind("props.style.align");
-  text-align: v-bind("props.style.align");
-  color: v-bind("props.style.color");
-  background: v-bind("props.style.background");
-  font-size: v-bind("props.style.fontSize");
-  padding: v-bind("props.style.padding");
-  margin: v-bind("props.style.margin");
-  border-radius: v-bind("props.style.borderRadius");
-  font-family: v-bind("props.style.fontFamily");
+  justify-content: center;
 }
 
-p {
+.textbox :deep(p) {
   margin: 0;
 }
 </style>
