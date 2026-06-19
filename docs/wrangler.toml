@@ -1,0 +1,42 @@
+name = "hackbox-docs"
+compatibility_date = "2026-04-09"
+workers_dev = true
+
+# Serve the prerendered docs site at hackbox.ca/docs*. This route is more
+# specific than the client's apex catch-all (hackbox.ca), so it takes precedence
+# and serves the docs for everything under /docs. The site is built with
+# app.baseURL = "/docs/" (see nuxt.config.ts), so the generated files land under
+# dist/docs/* and line up with this route.
+routes = [{ pattern = "hackbox.ca/docs*", zone_name = "hackbox.ca" }]
+
+# The build (`npm run build` == `nuxt generate`) prerenders the whole Docus site
+# to static HTML and bundles the @nuxt/content database as a client-side (WASM)
+# dump, so no D1 binding or Nitro server is needed — this is a pure static-assets
+# Worker. `nuxt generate` (not `nuxt build`) is required: it forces Nitro's static
+# preset, whereas `nuxt build` on Cloudflare auto-selects the cloudflare-module
+# SSR preset (which needs D1 for content and emits a server, not the dist/ this
+# Worker serves). Nitro writes the public output into dist/docs/ (see
+# nuxt.config.ts) so on-disk paths line up with the /docs/* URLs served here.
+#
+# NOTE: no [build] here — mirrors admin/wrangler.toml. The build must run before
+# deploy; locally the `deploy`/`preview` npm scripts chain it, and in Workers
+# Builds it's the dashboard "Build command" (`npm run build`, root directory
+# docs/, which installs devDeps automatically). Keeping it out of this file avoids
+# a redundant second build during `wrangler deploy`.
+[assets]
+directory = "./dist"
+# No `binding` / `main`: this is an assets-only Worker (no server code reads the
+# assets), so Cloudflare serves dist/ directly. The hackbox.ca/docs* route maps
+# request paths to files under dist/ (so /docs/* → dist/docs/*).
+# Every content page is prerendered to a physical .html, so direct links resolve
+# without a fallback. For genuinely missing paths, serve the Docus 404 page:
+# Cloudflare walks up the directory tree from the request, finding dist/docs/404.html.
+not_found_handling = "404-page"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true

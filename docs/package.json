@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "PORT=9002 nuxt dev",
-    "build": "nuxt build",
-    "generate": "nuxt generate",
+    "build": "nuxt generate",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
@@ -17,12 +18,13 @@
     "json-editor-vue": "^0.18.1",
     "marked": "^17.0.1",
     "nuxt": "^4.2.2",
-    "socket.io-client": "^4.8.3",
+    "partysocket": "^1.1.16",
     "vue": "^3.5.27"
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "@iconify-json/lucide": "^1.2.86",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.94.0"
   }
 }

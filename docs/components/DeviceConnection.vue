@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { io, type Socket } from "socket.io-client";
+import { createHackboxSocket, type HackboxSocket } from "~/utils/hackboxSocket";
 
 const config = useRuntimeConfig();
 
@@ -36,7 +36,7 @@ const props = defineProps<{
   roomCode: string | null;
 }>();
 
-const socket = ref<Socket | null>(null);
+const socket = ref<HackboxSocket | null>(null);
 const connected = ref(false);
 const loading = ref(false);
 const connectedPlayers = ref<any[]>([]);
@@ -46,11 +46,27 @@ const localRoomCode = ref<string | null>(null);
 
 const roomCode = computed(() => localRoomCode.value || props.roomCode);
 
+// Resolve the hackbox backend endpoints. In production the docs are served from
+// the same origin as the api/relay Workers (hackbox.ca), so default to the
+// current origin; in dev point at the local Worker ports. Both are overridable
+// via runtimeConfig (see nuxt.config.ts). Runs client-side only (createRoom is
+// triggered by a click), so window.location is always available.
+function resolveEndpoints() {
+  const apiUrl =
+    config.public.apiUrl ||
+    (import.meta.dev ? "http://localhost:8787/api" : `${window.location.origin}/api`);
+  const relayHost =
+    config.public.relayHost || (import.meta.dev ? "localhost:1999" : window.location.host);
+  return { apiUrl, relayHost };
+}
+
 async function createRoom() {
   loading.value = true;
 
   try {
-    const response = await fetch(`${config.public.serverUrl}/rooms`, {
+    const { apiUrl, relayHost } = resolveEndpoints();
+
+    const response = await fetch(`${apiUrl}/rooms`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -70,23 +86,17 @@ async function createRoom() {
 
     localRoomCode.value = data.roomCode;
 
-    socket.value = io(config.public.serverUrl as string, {
-      query: {
-        roomCode: data.roomCode,
-        userId: hostId,
-      },
+    // Connect to the relay as the host (userId === hostId). On connect the relay
+    // sends the initial `state.host` roster, which also signals we're live.
+    socket.value = createHackboxSocket({
+      host: relayHost,
+      roomCode: data.roomCode,
+      userId: hostId,
     });
 
-    await new Promise<void>((resolve) => {
-      socket.value!.on("connect", () => {
-        resolve();
-      });
-    });
-
-    connected.value = true;
-    loading.value = false;
-
-    socket.value!.on("state.host", (state: any) => {
+    socket.value.on("state.host", (state: any) => {
+      connected.value = true;
+      loading.value = false;
       connectedPlayers.value = Object.values(state.members).filter((m: any) => m.online);
     });
   } catch (error) {
@@ -94,6 +104,10 @@ async function createRoom() {
     loading.value = false;
   }
 }
+
+onBeforeUnmount(() => {
+  socket.value?.close();
+});
 
 defineExpose({
   sendUpdate(data: any) {
