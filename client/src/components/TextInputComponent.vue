@@ -14,7 +14,6 @@ const props = mergeProps(
     persistent: false,
     style: {
       color: "black",
-      align: "left",
       background: "white",
       border: "2px solid black",
       width: "100%",
@@ -77,7 +76,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="text-input-wrapper">
+  <div class="text-input-wrapper" :style="props.style">
     <input
       v-if="props.type === 'number'"
       class="text-input"
@@ -108,25 +107,23 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* The host's style object is applied inline to the wrapper (any standard CSS);
+   the inner controls inherit its typography and stay transparent so the
+   wrapper's background/border frame the whole row. */
 .text-input-wrapper {
   display: flex;
   flex-direction: row;
-  border: v-bind("props.style.border");
-  border-radius: v-bind("props.style.borderRadius");
-  background: v-bind("props.style.background");
-  width: v-bind("props.style.width");
-  margin: v-bind("props.style.margin");
-  font-family: v-bind("props.style.fontFamily");
 }
 
 .text-input {
   border: none;
-  color: v-bind("props.style.color");
   background: transparent;
-  font-size: v-bind("props.style.fontSize");
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
   margin: 0;
   width: 100%;
-  padding: v-bind("props.style.padding");
+  padding: 0;
   flex-grow: 1;
 }
 
@@ -135,14 +132,15 @@ onUnmounted(() => {
 }
 
 .submit-button {
-  font-size: v-bind("props.style.fontSize");
   border: none;
-  border-radius: v-bind("props.style.borderRadius");
-  background: v-bind("props.style.background");
-  padding: v-bind("props.style.padding");
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0 0 0 10px;
 }
 
 .submit-icon {
-  color: v-bind("props.style.color");
+  color: inherit;
 }
 </style>

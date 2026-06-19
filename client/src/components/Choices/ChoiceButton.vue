@@ -1,19 +1,11 @@
 <script setup lang="ts">
 import markdown from "@/lib/markdown";
 import { ref, reactive, onUnmounted, onMounted, computed } from "vue";
+import { applyLegacyAlign } from "@/lib/helpers";
 
 export interface StyleProps {
-  color: string;
-  align: string;
-  background: string;
-  border: string;
-  width: string;
-  fontSize: string;
-  padding: string;
-  margin: string;
-  borderRadius: string;
-  fontFamily: string;
-  hover: Partial<StyleProps>;
+  hover?: Record<string, string>;
+  [key: string]: unknown;
 }
 
 export interface Props {
@@ -37,7 +29,6 @@ const state: State = reactive({
 const defaultProps = {
   style: {
     color: "black",
-    align: "center",
     background: "#AAAAAA",
     border: "2px solid black",
     width: "100%",
@@ -76,6 +67,15 @@ const props = {
   },
 };
 
+// The host's style object is applied inline (any standard CSS). `hover` is the
+// one key that can't be an inline property — it's applied via the scoped
+// :hover/selected rules below, which need !important to beat the inline base.
+// applyLegacyAlign translates the deprecated `align` key onto standard CSS.
+const baseStyle = applyLegacyAlign(props.style);
+delete baseStyle.hover;
+const hoverColor = props.style.hover?.color ?? props.style.color;
+const hoverBackground = props.style.hover?.background ?? props.style.background;
+
 const button = ref<HTMLButtonElement>();
 const label = computed(() => markdown(props.label));
 
@@ -111,6 +111,7 @@ onUnmounted(() => {
   <button
     ref="button"
     @click="handleSelect"
+    :style="baseStyle"
     :disabled="state.selected"
     :class="`choice ${state.selected ? 'choice--selected' : ''}`"
   >
@@ -121,38 +122,19 @@ onUnmounted(() => {
 <style scoped>
 .choice {
   display: flex;
-  width: v-bind("props.style.width");
-  border: v-bind("props.style.border");
-  justify-content: v-bind("props.style.align");
-  color: v-bind("props.style.color");
-  background: v-bind("props.style.background");
-  font-size: v-bind("props.style.fontSize");
-  padding: v-bind("props.style.padding");
-  margin: v-bind("props.style.margin");
-  border-radius: v-bind("props.style.borderRadius");
-  font-family: v-bind("props.style.fontFamily");
+  justify-content: center;
+  align-items: center;
 }
 
-.choice--selected {
-  color: v-bind("props.style.hover.color || props.style.color");
-  background: v-bind("props.style.hover.background || props.style.hover.background");
-}
-
-.choice--not-selected {
-  opacity: 0.6;
-}
-
+/* Hover/selected colors override the inline base style, so they need !important. */
+.choice--selected,
 .choice:hover:not(:disabled) {
   cursor: pointer;
-  color: v-bind("props.style.hover.color || props.style.hover.color");
-  background: v-bind("props.style.hover.background || props.style.hover.background");
+  color: v-bind(hoverColor) !important;
+  background: v-bind(hoverBackground) !important;
 }
 
 .choice:disabled {
-  opacity: 0.6;
-}
-
-.choice--not-selected {
   opacity: 0.6;
 }
 

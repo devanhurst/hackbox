@@ -1,19 +1,11 @@
 <script setup lang="ts">
 import markdown from "@/lib/markdown";
 import { ref, reactive, computed } from "vue";
+import { applyLegacyAlign } from "@/lib/helpers";
 
 export interface StyleProps {
-  color: string;
-  align: string;
-  background: string;
-  border: string;
-  width: string;
-  fontSize: string;
-  padding: string;
-  margin: string;
-  borderRadius: string;
-  fontFamily: string;
-  hover: Partial<StyleProps>;
+  hover?: Record<string, string>;
+  [key: string]: unknown;
 }
 
 export interface Props {
@@ -33,7 +25,6 @@ const state: State = reactive({
 const defaultProps = {
   style: {
     color: "black",
-    align: "center",
     background: "#AAAAAA",
     border: "2px solid black",
     width: "100%",
@@ -67,33 +58,40 @@ const props = {
   },
 };
 
+// The host's style object is applied inline (any standard CSS). `hover` is
+// applied via the scoped :hover rule below, which needs !important to beat the
+// inline base. applyLegacyAlign translates the deprecated `align` key.
+const baseStyle = applyLegacyAlign(props.style);
+delete baseStyle.hover;
+const hoverColor = props.style.hover?.color ?? props.style.color;
+const hoverBackground = props.style.hover?.background ?? props.style.background;
+
 const button = ref<HTMLButtonElement>();
 const label = computed(() => markdown(props.label));
 </script>
 
 <template>
-  <button ref="button" :disabled="state.submitted" class="sort-option" v-html="label"></button>
+  <button
+    ref="button"
+    :disabled="state.submitted"
+    class="sort-option"
+    :style="baseStyle"
+    v-html="label"
+  ></button>
 </template>
 
 <style scoped>
 .sort-option {
   display: flex;
-  width: v-bind("props.style.width");
-  border: v-bind("props.style.border");
-  justify-content: v-bind("props.style.align");
-  color: v-bind("props.style.color");
-  background: v-bind("props.style.background");
-  font-size: v-bind("props.style.fontSize");
-  padding: v-bind("props.style.padding");
-  margin: v-bind("props.style.margin");
-  border-radius: v-bind("props.style.borderRadius");
-  font-family: v-bind("props.style.fontFamily");
+  justify-content: center;
+  align-items: center;
 }
 
+/* Hover colors override the inline base style, so they need !important. */
 .sort-option:hover:not(:disabled) {
   cursor: pointer;
-  color: v-bind("props.style.hover.color || props.style.hover.color");
-  background: v-bind("props.style.hover.background || props.style.hover.background");
+  color: v-bind(hoverColor) !important;
+  background: v-bind(hoverBackground) !important;
 }
 
 .sort-option:disabled {

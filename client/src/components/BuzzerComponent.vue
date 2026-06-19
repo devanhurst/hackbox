@@ -18,8 +18,8 @@ const props = mergeProps(
     style: {
       color: "white",
       background: "red",
-      shadow: "5px 5px #000000",
-      radius: "70px",
+      boxShadow: "5px 5px #000000",
+      borderRadius: "70px",
       fontSize: "70px",
       height: "300px",
       border: "2px solid white",
@@ -55,21 +55,25 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <button @click="respond" :disabled="buzzerState.buzzed" class="buzzer-button">
+  <button
+    @click="respond"
+    :disabled="buzzerState.buzzed"
+    class="buzzer-button"
+    :style="props.style"
+  >
     {{ props.label }}
   </button>
 </template>
 
 <style scoped>
+/* The host's style object is applied inline above (any standard CSS). */
 .buzzer-button {
-  color: v-bind("props.color");
-  background: v-bind("props.background");
-  font-size: v-bind("props.fontSize");
-  height: v-bind("props.height");
   margin: 0;
-  box-shadow: v-bind("props.shadow");
-  border-radius: v-bind("props.radius");
-  border: v-bind("props.border");
-  font-family: v-bind("props.fontFamily");
+  cursor: pointer;
+}
+
+.buzzer-button:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 </style>
