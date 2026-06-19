@@ -4,187 +4,267 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hackbox is a real-time multiplayer game platform with three main components in a monorepo structure:
+Hackbox is a real-time multiplayer game platform (think Jackbox): a **host** (a
+third-party game, typically a Unity build, not in this repo) drives UI onto
+**players'** phones and receives their interactions, all relayed in real time.
 
-1. **client** - Vue 3 + TypeScript player interface (runs on mobile devices)
-2. **server** - Node.js + Express + Socket.io backend
-3. **admin** - Nuxt 3 admin panel for viewing stats
+The platform runs **entirely on Cloudflare** — Durable Objects for real-time
+sync, D1 for durable history, and several Workers. There is no always-on server
+and (for the live path) no managed database.
 
-## Development Commands
+> **History:** Hackbox was migrated off a Node/Express/Socket.io + Postgres
+> service (on Render) onto Cloudflare. The legacy service still lives in
+> `server/` and is kept running only during the host-deprecation window — see
+> [Legacy server](#legacy-server-server--deprecated). New work goes in the
+> Cloudflare Workers below.
 
-### Running the full stack
+## Monorepo layout
 
-```bash
-npm run dev  # Runs all three services concurrently
+| Dir | Worker | What it is |
+| --- | --- | --- |
+| `relay/` | `hackbox-relay` | The realtime core: a `Room` **Durable Object** (partyserver) holding live member state + a replay cache, and writing permanent history to D1. |
+| `api/` | `hackbox-api` | A **Hono** Worker — the HTTP front door (`POST /api/rooms`, room existence probes). |
+| `client/` | `hackbox-client` | The Vue 3 player SPA, served as a static-assets Worker. |
+| `admin/` | `hackbox-admin` | A Nuxt 3 admin dashboard (Access-protected) reading room/member history from D1 + live presence from the relay. |
+| `db/` | — | The Cloudflare **D1** schema (`schema.sql`) — permanent room/member history. |
+| `docs/` | — | The public docs site (Nuxt Content, docs.hackbox.ca). Source under `docs/content/`. |
+| `server/` | — | **Legacy** Node/Express/Socket.io + Postgres service. Deprecated. |
+
+### Routing — apex path prefixes, not subdomains
+
+All Workers are served under the apex `hackbox.ca` via path prefixes rather than
+`api.`/`relay.` subdomains (subdomains get reset by some users' SNI-filtering
+middleboxes; the apex is the durable fix). Order matters — more specific routes
+win:
+
+- `hackbox.ca/r/*` → relay (WS at the minimal `wss://hackbox.ca/r/<code>`)
+- `hackbox.ca/api/*` → api (`POST /api/rooms`, `GET /api/rooms/:code`)
+- `hackbox.ca/admin*` → admin (must stay behind **Cloudflare Access** — the Worker has no auth of its own)
+- `hackbox.ca` → client SPA (catch-all)
+
+The relay and admin set `workers_dev = false` so their `*.workers.dev` URLs are
+disabled; the relay's `/admin/*` surface is reachable **only** via service
+bindings, never the public internet.
+
+## The wire protocol (the public API)
+
+Hosts are third-party integrations against a documented public API, so the
+protocol is a hard contract — **don't break it casually.** Every WebSocket frame
+is a JSON envelope `{ type, payload }` over raw WebSocket:
+
+```
+host   -> relay : member.update { to, data }, reload
+relay  -> host  : state.host { members }, msg { from, event, message, timestamp }, change { ... }
+member -> relay : msg { event, value }, change { event, value }
+relay  -> member: state.member <MemberState>, reload, error { message }
 ```
 
-### Individual services
+- **Keepalive:** clients send a bare `ping` text frame every ~25s; the relay edge
+  answers `pong` (it doesn't even wake the DO).
+- **Terminal close:** a close code **≥ 4000** means "do not reconnect" (room
+  gone/closed/expired, duplicate device); an `error` frame with a `message`
+  precedes it. Codes < 4000 are transient — reconnect with backoff.
+- **Identity** is by query param on connect: `userId === room.hostId` makes you
+  the host (a shared secret); any other `userId` is a player.
 
-```bash
-npm run dev:server    # Start server on port 9000
-npm run dev:client    # Start client on port 9001
-npm run dev:docs      # Start docs on port 9002
-```
-
-### Client (client/)
-
-```bash
-cd client
-npm run dev           # Start Vite dev server
-npm run build         # Type check + build for production
-npm run type-check    # Run TypeScript compiler check
-npm run test:unit     # Run Vitest unit tests
-```
-
-### Server (server/)
-
-```bash
-cd server
-npm run dev           # Watch mode: compile TS + auto-restart on port 9000
-npm run build         # Compile TypeScript + upload Sentry sourcemaps
-npm start             # Run compiled code from dist/
-```
+The hackbox client SDK (`client/src/lib/sockets/hackboxSocket.ts`) maps this 1:1
+onto a legacy socket.io-style surface (`emit(type, payload)` ⇄ `{ type, payload }`;
+`on(type, cb)` ⇄ `cb(payload)`), so the rest of the client was unaffected by the
+transport change. Unity hosts use the separate
+[hackbox-unity](https://github.com/devanhurst/hackbox-unity) package.
 
 ## Architecture
 
-### Real-time Communication Flow
+### Relay (`relay/`) — the `Room` Durable Object
 
-The application uses Socket.io for bidirectional communication between players and hosts:
+`relay/src/main.ts` is the `Room` DO (partyserver `Server`). It is otherwise a
+**dumb message router**; its one stateful job is the **replay cache** — it
+remembers the last `state.member` addressed to each member and replays it on
+(re)connect (what the legacy `members.state` Postgres column did, now in DO
+storage). Responsibilities:
 
-1. Players connect to **Client** via socket.io → **Server** → **Host** (game logic and presentation layer)
-2. **Host** sends UI state updates → **Server** → **Client**
-3. **Client** sends player interactions (button clicks, text input) → **Server** → **Host**
+- Host/member routing (`member.update`, `reload`, `msg`, `change`), the
+  `state.host` roster, and targeted `state.member` delivery.
+- One-connection-per-`userId` eviction; `online` is **derived** from live
+  connections, never stored.
+- Room settings (closed / twitchRequired / persistent) and a **24h self-destruct
+  alarm**.
+- Server-side **Twitch auth** (`relay/src/twitch.ts`, reads `env.TWITCH_CLIENT_ID`).
+- **D1 history writes** (best-effort): a `rooms` row on creation, `ended_at` on
+  expiry, a `members` row on each user's first join.
 
-### Server (server/)
+Other files: `relay/src/index.ts` (Worker entry — routes `/r/<code>` and
+`/admin/room/<code>` by hand via `getServerByName`), `relay/src/roomState.ts`
+(`MemberState`, `defaultMemberState`, `sanitizeState`).
 
-**Entry Point**: `index.ts` - Sets up Express server, Socket.io, and Sentry monitoring
+Storage layout (DO): `settings` (room metadata — a room "exists" iff present)
+and `m:${userId}` (per-member replay record). **Note:** `relay/src/registry.ts`
+(the `Registry` DO) is **deprecated** — superseded by D1 history, no longer
+instantiated, kept only so the `v2` DO migration still references a valid class.
 
-**Core Architecture**: `RoomService/RoomService.ts`
+### API (`api/`) — the HTTP front door
 
-- Central orchestrator for all game room operations
-- Manages bidirectional communication between hosts and players (members)
-- Handles socket connection routing via `RoomService.join()` static method
-- Maintains separate socket handlers for hosts vs members
+`api/src/index.ts` is a Hono app with `basePath("/api")`:
 
-**Socket Handlers**:
+- `POST /api/rooms` `{ hostId, twitchRequired? }` → `{ ok, roomCode }`. Allocates
+  a code by generating one and asking the relay DO to `init`; a `409` means the
+  code is taken, so it retries (up to 8 attempts). **No shared registry, no D1
+  for allocation** — the DO's own existence is the source of truth.
+- `GET /api/rooms/:roomCode` → `{ exists, twitchRequired }` (closed rooms are
+  hidden from non-members).
+- `GET /api/healthcheck` → `{ ok: true }`.
 
-- `RoomService/hostSocket.ts` - Listens for host commands (`member.update`, `reload`)
-- `RoomService/memberSocket.ts` - Listens for player events (`msg`, `change`, `disconnect`)
+It reaches the relay over a **service binding** (`RELAY`), not the public
+internet (`api/src/relay.ts`: `RelayClient`, `generateRoomCode`).
 
-**Data Models**: `models/`
+### Client (`client/`) — the Vue player SPA
 
-- `Room.ts` - Game room with 4-letter consonant code (e.g., "BCKD"), host ID, settings
-- `Member.ts` - Player in a room with state (UI configuration), online status, metadata
+Vue 3 + Composition API + TypeScript + Vite. Unchanged from the legacy player
+client except the transport. Key files:
 
-**Database**: `db.ts`
+- `src/lib/sockets/hackboxSocket.ts` — `createHackboxSocket(...)`, the
+  `partysocket` wrapper that speaks the `{ type, payload }` envelope and exposes
+  the `on`/`off`/`emit`/`close` surface (plus the 25s keepalive and ≥4000
+  fatal-close handling).
+- `src/lib/sockets/playerSocket.ts` — the reactive player connection, built on
+  `createHackboxSocket`. Receives `state.member` and drives the UI.
+- `src/lib/sockets/legacySocket.ts` — a `socket.io-client` fallback. The client
+  probes the new relay first and falls back to the **legacy** server
+  (`app.hackbox.ca`) for rooms hosted by not-yet-updated Unity games.
+- `src/config/index.ts` — `apiUrl`, `relayHost`, `legacyServerUrl` (defaults to
+  the current origin in prod; `VITE_*` env vars override).
+- `src/views/PlayerView.vue` — the **dynamic component renderer**: reads
+  `state.ui.main.components` and renders each by its `type` field.
+- `src/components/` + `src/components/index.ts` — the player UI components
+  (`ButtonComponent.vue`, `TextComponent.vue`, `Choices/`, `Sort/`, etc.).
+- `src/types.ts` — `PlayerState`, `ThemeState`, `UiState`. No Vuex/Pinia; state
+  is Vue's `reactive()`.
 
-- Drizzle ORM with PostgreSQL
-- Two tables: `rooms` and `members`
-- Connection string from `DATABASE_URL` environment variable
+### Admin (`admin/`) — the monitor dashboard
 
-**Key Concepts**:
+Nuxt 3 SPA (`ssr: false`), deployed as a Cloudflare Worker via the Nitro
+`cloudflare_module` preset, served under the `/admin` base path. The Nitro server
+routes live in `admin/server/api/*`:
 
-- **Member State**: JSON object defining the player's UI (components, theme, layout) - see `helpers.ts:defaultMemberState()`
-- **Room Codes**: 4-character consonant codes generated in `models/Room.ts:generateRoomCode()`
-- **Host Updates**: Host sends state updates to specific players via `member.update` event
-- **Member Messages**: Players send events (`msg`, `change`) that get forwarded to host
+- `rooms.get.ts` — the room **listing** (permanent history from D1, newest first).
+- `room/[id].get.ts` — a room's detail (roster).
+- `rooms.post.ts` / `revive.post.ts` / `delete.post.ts` / `settings.post.ts` —
+  create / import-existing / delete / edit rooms (via the relay service binding).
 
-### Client (client/)
+Data sources: **D1** (`DB` binding) for the durable listing, the **relay**
+(`RELAY` service binding) for live presence (`/admin/room/<code>`). Shared
+helpers in `admin/server/utils/rooms.ts`. `nitro-cloudflare-dev` wires the `DB`
+and `RELAY` bindings into `nuxt dev`.
 
-**Framework**: Vue 3 with Composition API, TypeScript, Vite
+### Database (`db/`) — Cloudflare D1
 
-**Entry Point**: `src/main.ts`
+A single D1 database, `hackbox`, holding **permanent room + member history only**
+— live gameplay state stays in the relay's DOs. Schema in `db/schema.sql`:
 
-**Routes** (`src/router/index.ts`):
+- `rooms` — one row per room **instance**. Codes are recycled, so `id` (a UUID)
+  is the primary key, **not** `code`. Rows are never deleted; a room's end is
+  recorded via `ended_at` + `end_reason` (`expired` | `closed` | `migrated`).
+- `members` — one row per (room instance, user) on first join (reconnects don't
+  add rows); references `rooms.id` via `room_id`.
 
-- `/` - Lobby view (enter room code)
-- `/play` - Active player view (renders dynamic UI components)
-- `/twitch-auth-callback` - OAuth redirect handler
+Written by the **relay**, read by the **admin** — both bind `DB` in their
+`wrangler.toml`. See `db/README.md` for the full rationale and the one-time
+Postgres → D1 import. D1 caps **100 bound variables per statement**, so chunk
+any `IN (...)` over a variable-length list (see `fetchMembersByRoom` in
+`admin/server/utils/rooms.ts`).
 
-**Socket Connection**: `src/lib/sockets/playerSocket.ts`
+### Legacy server (`server/`) — deprecated
 
-- Initializes Socket.io client with userId, userName, roomCode from browser storage
-- Receives `state.member` events with UI configuration
-- Reactive state object that drives the UI rendering
+The original Node/Express/Socket.io + Postgres (Drizzle ORM) service. Kept
+running on Render **read-mostly** during the host-deprecation window so rooms
+hosted by not-yet-updated Unity games keep working (the client falls back to it
+via `legacySocket.ts`). **Don't build new features here** — it will be retired
+once Unity hosts have migrated. It still holds the Postgres → D1 migration
+scripts (`server/scripts/migrate-to-d1.ts`).
 
-**Dynamic Component System**: `src/views/PlayerView.vue`
+## Development Commands
 
-- Receives component definitions from server in `state.ui.main.components`
-- Dynamically renders components based on `type` field (e.g., "Text", "Button", "Choices")
-- Components located in `src/components/` (ButtonComponent.vue, TextComponent.vue, etc.)
+### Tooling
 
-**State Management**:
-
-- No Vuex/Pinia - uses Vue's reactive() API
-- State structure defined in `src/types.ts` (PlayerState, ThemeState, UiState)
-- State helpers in `src/lib/stateHelpers.ts` for processing server state
-
-**Key Files**:
-
-- `src/types.ts` - TypeScript interfaces for state and components
-- `src/lib/browserStorage.ts` - LocalStorage helpers for userId, userName, roomCode, Twitch tokens
-- `src/lib/markdown.ts` - Markdown rendering utilities
-- `src/components/index.ts` - Component exports
-
-### Shared Database Schema
-
-Both server and admin connect to the same PostgreSQL database:
-
-**Rooms Table**:
-
-- `code` (primary key) - 4-letter room code
-- `hostId` - UUID of room creator
-- `closed` - Whether new players can join
-- `twitchRequired` - Whether Twitch auth is required
-- `persistent` - Whether room persists after host disconnect
-
-**Members Table**:
-
-- `id` (UUID primary key)
-- `roomCode` - Foreign key to rooms
-- `userId`, `userName` - Player identification
-- `state` (JSON) - Player UI configuration
-- `online` - Connection status
-- `metadata` (JSON) - Additional data (e.g., Twitch info)
-
-## Database Management
-
-The server uses Drizzle ORM. Schema is defined in `server/db.ts`.
-
-To run database migrations or updates, use drizzle-kit (installed in server):
+Lint/format are at the **repo root** (oxlint + oxfmt), enforced by a Husky +
+lint-staged pre-commit hook:
 
 ```bash
-cd server
-npx drizzle-kit generate  # Generate migrations
-npx drizzle-kit push      # Push schema changes
+npm run lint        # oxlint --type-aware
+npm run lint:fix    # oxlint --fix
+npm run fmt         # oxfmt
+npm run fmt:check   # oxfmt --check
 ```
 
-## Important Patterns
+### Running services
 
-### Adding New Player Components
+The root `npm run dev` runs **client (9001), docs (9002), and the LEGACY server
+(9000)** concurrently — it predates the migration and does **not** start the
+relay/api/admin Workers. Run those individually with `wrangler dev`:
 
-1. Create component in `client/src/components/` (e.g., `NewComponent.vue`)
-2. Export from `client/src/components/index.ts`
-3. Component receives `custom` prop with configuration from server
-4. Emit socket events via `inject("socket")` for user interactions
-5. Host receives events in `RoomService/hostSocket.ts` via `msg` or `change` events
+```bash
+# from the repo root
+npm run dev            # legacy server + client + docs (see caveat above)
 
-### Updating Member State from Host
-
-Host sends state updates via Socket.io:
-
-```typescript
-socket.emit("member.update", {
-  to: userId, // or array of userIds
-  data: {
-    theme: {
-      /* theme config */
-    },
-    ui: {
-      /* UI config */
-    },
-  },
-});
+# Cloudflare Workers — run each in its own dir
+cd relay && npm run dev   # wrangler dev — Room DO (partyserver, :1999)
+cd api   && npm run dev   # wrangler dev — Hono API (:8787)
+cd admin && npm run dev   # nuxt dev (:9003), DB + RELAY bindings via nitro-cloudflare-dev
+cd client && npm run dev  # vite (:9001)
+cd docs  && npm run dev   # nuxt dev (:9002)
 ```
 
-Server processes in `server/RoomService/hostSocket.ts` and calls `roomService.updateMemberStates()`.
+Each Worker dir has `npm run type-check` (`tsc --noEmit`, or `nuxt typecheck` /
+`vue-tsc` for admin/client) and `npm run deploy` (`wrangler deploy`, prefixed by
+a build for admin/client/docs). Deploys also run automatically via **Workers
+Builds** on pushes that touch each Worker's root dir.
+
+### D1 schema
+
+```bash
+# from the repo root, with wrangler authenticated
+npx wrangler d1 execute hackbox --remote --file=db/schema.sql
+```
+
+## Member state & components
+
+When a host sends a player UI, it sets that player's **member state** — a single
+object with three top-level keys, each optional (omitted keys fall back to
+defaults):
+
+```json
+{
+  "theme": { "header": {}, "main": {} },
+  "ui": { "header": { "text": "Round 1" }, "main": { "align": "start", "components": [] } },
+  "presets": {}
+}
+```
+
+::important:: **State is a full replacement.** Every `member.update` replaces the
+target's entire state — the `data` is merged onto a blank default canvas, not
+onto the player's current screen. Always send the complete screen. This is also
+why the relay can cache + replay each player's last state verbatim on reconnect.
+
+`ui.main.components` is an ordered list of `{ "type": <ComponentName>, "props": {} }`.
+`PlayerView.vue` renders each by `type`. The full component catalog and protocol
+are documented in `docs/content/` (the public docs).
+
+### Adding a new player component
+
+1. Create the component in `client/src/components/` (receives a `custom`/props
+   object from the server state).
+2. Export it from `client/src/components/index.ts`.
+3. Emit socket events for user interactions via the injected socket
+   (`inject("socket")`) — `msg` on submit, `change` while editing.
+4. The host receives those as `msg` / `change` envelopes from the relay.
+5. Document the component in `docs/content/2.components/`.
+
+### Updating member state from a host
+
+```jsonc
+// host -> relay
+{ "type": "member.update", "payload": { "to": "<userId | userId[]>", "data": {} } }
+```
+
+The relay (`relay/src/main.ts`) routes it to the target connection(s) and updates
+the replay cache.
