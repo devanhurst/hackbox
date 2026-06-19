@@ -1,0 +1,38 @@
+name = "hackbox-docs"
+compatibility_date = "2026-04-09"
+workers_dev = true
+
+# Serve the prerendered docs site at hackbox.ca/docs*. This route is more
+# specific than the client's apex catch-all (hackbox.ca), so it takes precedence
+# and serves the docs for everything under /docs. The site is built with
+# app.baseURL = "/docs/" (see nuxt.config.ts), so the generated files land under
+# .output/public/docs/* and line up with this route.
+routes = [{ pattern = "hackbox.ca/docs*", zone_name = "hackbox.ca" }]
+
+# `nuxt generate` prerenders the whole Docus site to static HTML and bundles the
+# @nuxt/content database as a client-side (WASM) dump, so no D1 binding or Nitro
+# server is needed — this is a pure static-assets Worker. Nitro writes the public
+# output into dist/docs/ (see nuxt.config.ts) so on-disk paths line up with the
+# /docs/* URLs this Worker serves. With this Worker's root directory set to docs/
+# in Workers Builds, devDependencies (nuxt, wrangler) install automatically, so
+# the build command only generates. Workers Builds redeploys on pushes under docs/.
+[build]
+command = "npm run generate"
+
+[assets]
+directory = "./dist"
+# No `binding` / `main`: this is an assets-only Worker (no server code reads the
+# assets), so Cloudflare serves dist/ directly. The hackbox.ca/docs* route maps
+# request paths to files under dist/ (so /docs/* → dist/docs/*).
+# Every content page is prerendered to a physical .html, so direct links resolve
+# without a fallback. For genuinely missing paths, serve the Docus 404 page:
+# Cloudflare walks up the directory tree from the request, finding dist/docs/404.html.
+not_found_handling = "404-page"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
