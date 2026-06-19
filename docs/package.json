@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "PORT=9002 nuxt dev",
-    "build": "nuxt build",
-    "generate": "nuxt generate",
-    "preview": "npm run generate && wrangler dev",
-    "deploy": "npm run generate && wrangler deploy",
+    "build": "nuxt generate",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
