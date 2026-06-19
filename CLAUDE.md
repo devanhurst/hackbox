@@ -27,7 +27,7 @@ and (for the live path) no managed database.
 | `client/` | `hackbox-client` | The Vue 3 player SPA, served as a static-assets Worker. |
 | `admin/` | `hackbox-admin` | A Nuxt 3 admin dashboard (Access-protected) reading room/member history from D1 + live presence from the relay. |
 | `db/` | — | The Cloudflare **D1** schema (`schema.sql`) — permanent room/member history. |
-| `docs/` | — | The public docs site (Nuxt Content, docs.hackbox.ca). Source under `docs/content/`. |
+| `docs/` | — | The public docs site (Nuxt Content, hackbox.ca/docs). Source under `docs/content/`. |
 | `server/` | — | **Legacy** Node/Express/Socket.io + Postgres service. Deprecated. |
 
 ### Routing — apex path prefixes, not subdomains
@@ -40,6 +40,7 @@ win:
 - `hackbox.ca/r/*` → relay (WS at the minimal `wss://hackbox.ca/r/<code>`)
 - `hackbox.ca/api/*` → api (`POST /api/rooms`, `GET /api/rooms/:code`)
 - `hackbox.ca/admin*` → admin (must stay behind **Cloudflare Access** — the Worker has no auth of its own)
+- `hackbox.ca/docs*` → docs site
 - `hackbox.ca` → client SPA (catch-all)
 
 The relay and admin set `workers_dev = false` so their `*.workers.dev` URLs are

@@ -16,11 +16,11 @@ Runs entirely on Cloudflare (Durable Objects + D1 + Workers).
 | `client/` | Vue 3 player app (`hackbox-client`). |
 | `admin/` | Nuxt 3 admin dashboard (`hackbox-admin`). |
 | `db/` | Cloudflare D1 schema (room/member history). |
-| `docs/` | Public docs site ([docs.hackbox.ca](https://docs.hackbox.ca)). |
+| `docs/` | Public docs site ([hackbox.ca/docs](https://hackbox.ca/docs)). |
 | `server/` | Legacy Node/Socket.io server — deprecated. |
 
 ## Docs
 
-[docs.hackbox.ca](https://docs.hackbox.ca) — protocol, components, and a build-a-game tutorial.
+[hackbox.ca/docs](https://hackbox.ca/docs) — protocol, components, and a build-a-game tutorial.
 
 For architecture and local development, see [CLAUDE.md](./CLAUDE.md).
