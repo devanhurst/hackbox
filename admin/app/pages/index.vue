@@ -79,10 +79,7 @@ onBeforeUnmount(() => {
     <header class="bg-primary px-5 py-3 text-lg font-extrabold text-white">hackbox admin</header>
 
     <main class="mx-auto max-w-6xl space-y-3 p-5">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-primary-400">Create room</h2>
-      <CreateRoom @created="refresh" />
-
-      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-primary-400">
           Rooms ({{ rooms.length }})
         </h2>
