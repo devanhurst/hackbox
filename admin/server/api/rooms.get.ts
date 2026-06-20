@@ -2,14 +2,37 @@ import { type RoomRow, fetchMembersByRoom, mapRow, overlayPresence } from "../ut
 
 // Listing = permanent history from D1, newest first. Returns counts only (the
 // per-room roster is fetched on demand by the detail view).
+//
+// Server-side filters (query params):
+//   status — "active" (default; ended_at IS NULL), "ended", or "all"
+//   code   — case-insensitive substring match on the room code
+// "active" is the default so the initial fetch only loads rooms still running;
+// the finer live/gone/host distinctions need relay presence (overlaid below) and
+// stay client-side.
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
 
+  const query = getQuery(event);
+  const status = query.status === "ended" || query.status === "all" ? query.status : "active";
+  const code = typeof query.code === "string" ? query.code.trim() : "";
+
+  const conditions: string[] = [];
+  const binds: unknown[] = [];
+  if (status === "active") conditions.push("ended_at IS NULL");
+  else if (status === "ended") conditions.push("ended_at IS NOT NULL");
+  if (code) {
+    // Escape LIKE wildcards in user input; codes are uppercase, LIKE is
+    // case-insensitive for ASCII in SQLite but we uppercase to be explicit.
+    const escaped = code.toUpperCase().replace(/[\\%_]/g, (c) => `\\${c}`);
+    conditions.push("code LIKE ? ESCAPE '\\'");
+    binds.push(`%${escaped}%`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
   let results: RoomRow[];
   try {
-    ({ results } = await env.DB.prepare(
-      `SELECT * FROM rooms ORDER BY created_at DESC LIMIT 200`,
-    ).all<RoomRow>());
+    const stmt = env.DB.prepare(`SELECT * FROM rooms ${where} ORDER BY created_at DESC LIMIT 200`);
+    ({ results } = await (binds.length ? stmt.bind(...binds) : stmt).all<RoomRow>());
   } catch (e) {
     // Most likely the schema hasn't been applied yet (db/schema.sql).
     setResponseStatus(event, 500);

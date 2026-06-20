@@ -6,7 +6,30 @@ useHead({ title: "hackbox admin" });
 const actions = useRoomActions();
 const apiUrl = useApi();
 
-const { data, refresh, status } = await useFetch<RoomsResponse>(apiUrl("rooms"), { server: false });
+// Server-side filters. `statusFilter` and `codeQuery` feed the fetch query so
+// the server narrows the result set; useFetch refetches whenever either changes.
+const statusFilter = ref<"active" | "ended" | "all">("active");
+const statusItems = [
+  { label: "Active", value: "active" },
+  { label: "Ended", value: "ended" },
+  { label: "All", value: "all" },
+];
+// `codeInput` is bound to the search box; `codeQuery` is the debounced value sent
+// to the server so we don't refetch on every keystroke.
+const codeInput = ref("");
+const codeQuery = ref("");
+let codeDebounce: ReturnType<typeof setTimeout> | null = null;
+watch(codeInput, (v) => {
+  if (codeDebounce) clearTimeout(codeDebounce);
+  codeDebounce = setTimeout(() => {
+    codeQuery.value = v.trim();
+  }, 300);
+});
+
+const { data, refresh, status } = await useFetch<RoomsResponse>(apiUrl("rooms"), {
+  query: { status: statusFilter, code: codeQuery },
+  server: false,
+});
 const rooms = computed(() => data.value?.rooms ?? []);
 const loading = computed(() => status.value === "pending");
 
@@ -47,6 +70,7 @@ watch(auto, syncTimer);
 onMounted(syncTimer);
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer);
+  if (codeDebounce) clearTimeout(codeDebounce);
 });
 </script>
 
@@ -58,11 +82,19 @@ onBeforeUnmount(() => {
       <h2 class="text-sm font-semibold uppercase tracking-wide text-primary-400">Create room</h2>
       <CreateRoom @created="refresh" />
 
-      <div class="flex items-center justify-between pt-2">
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-primary-400">
           Rooms ({{ rooms.length }})
         </h2>
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <UInput
+            v-model="codeInput"
+            icon="i-lucide-search"
+            placeholder="Search code"
+            class="w-40"
+            :loading="loading && !!codeInput"
+          />
+          <USelect v-model="statusFilter" :items="statusItems" class="w-32" />
           <USwitch v-model="auto" label="auto-refresh (5s)" />
           <UButton
             color="neutral"
