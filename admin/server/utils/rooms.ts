@@ -1,5 +1,5 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { AdminEnv, RelayFetcher } from "./env";
+import type { AdminEnv } from "./env";
 
 // Shared helpers for the admin server routes. The room listing is permanent
 // history read from D1; live presence for active rooms is fetched from the relay
@@ -28,33 +28,6 @@ export interface AdminMember {
   userName: string;
   twitch: string | null;
   online: boolean;
-}
-
-export interface RoomSettings {
-  hostId: string;
-  twitchRequired: boolean;
-  persistent: boolean;
-  closed: boolean;
-}
-
-const CONSONANTS = "BCDFGHJKLMNPQRSTVWXZ".split("");
-export const MAX_CODE_ATTEMPTS = 8;
-
-export const generateRoomCode = (): string =>
-  [1, 2, 3, 4].map(() => CONSONANTS[Math.floor(Math.random() * CONSONANTS.length)]).join("");
-
-export function initRoom(
-  relay: RelayFetcher,
-  code: string,
-  settings: RoomSettings,
-): Promise<Response> {
-  return relay.fetch(
-    new Request(`https://relay/r/${code}/init`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(settings),
-    }),
-  );
 }
 
 export function twitchName(metadata: string | null): string | null {
