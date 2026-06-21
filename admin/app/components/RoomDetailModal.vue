@@ -165,6 +165,14 @@ const info = computed(() => {
             </UTable>
           </div>
         </div>
+
+        <!-- Live activity monitor -->
+        <RoomMonitor
+          :room-id="room.id"
+          :live="isLive(room)"
+          :active="open"
+          :members="room.members"
+        />
       </div>
     </template>
 

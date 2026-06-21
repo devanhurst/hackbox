@@ -1,4 +1,5 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
+import { MessageLog } from "./messageLog";
 import { defaultMemberState, sanitizeState, stripNullBytes, type MemberState } from "./roomState";
 import { authenticateWithTwitch, type TwitchMetadata } from "./twitch";
 
@@ -98,6 +99,10 @@ export class Room extends Server<Env> {
 
   private settings: RoomSettings | null = null;
   private members = new Map<string, MemberRecord>();
+  // The admin monitor's durable feed of relayed frames (see messageLog.ts).
+  // Constructed in onStart, once `this.name` (the room code) has been set by
+  // getServerByName — it isn't available at field-init time.
+  private log!: MessageLog;
 
   async onStart() {
     this.settings = (await this.ctx.storage.get<RoomSettings>("settings")) ?? null;
@@ -107,6 +112,11 @@ export class Room extends Server<Env> {
     for (const record of stored.values()) {
       this.members.set(record.userId, record);
     }
+
+    // Anchored to the room's history-row id, resolved lazily since a revive can
+    // swap it after the log is built.
+    this.log = new MessageLog(this.ctx, this.env.DB, this.name, () => this.settings?.id ?? null);
+    await this.log.init();
 
     // Answer client keepalive pings at the edge without waking the DO from
     // hibernation (mirrors the jparty relay). The client SDK sends "ping" on a
@@ -132,25 +142,29 @@ export class Room extends Server<Env> {
     // seeds its members back) instead of minting a new instance.
     if (req.method === "POST" && url.pathname.endsWith("/init")) {
       if (this.settings) {
-        return Response.json({ ok: false, error: "exists" }, { status: 409, headers: corsHeaders() });
+        return Response.json(
+          { ok: false, error: "exists" },
+          { status: 409, headers: corsHeaders() },
+        );
       }
 
-      const body = (await req.json().catch(() => null)) as
-        | {
-            hostId?: string;
-            twitchRequired?: boolean;
-            persistent?: boolean;
-            closed?: boolean;
-            createdAt?: number;
-            // Revive an existing room in place.
-            restore?: boolean;
-            id?: string;
-            members?: { userId?: string; userName?: string; metadata?: MemberMetadata }[];
-          }
-        | null;
+      const body = (await req.json().catch(() => null)) as {
+        hostId?: string;
+        twitchRequired?: boolean;
+        persistent?: boolean;
+        closed?: boolean;
+        createdAt?: number;
+        // Revive an existing room in place.
+        restore?: boolean;
+        id?: string;
+        members?: { userId?: string; userName?: string; metadata?: MemberMetadata }[];
+      } | null;
 
       if (!body?.hostId) {
-        return Response.json({ ok: false, error: "hostId required" }, { status: 400, headers: corsHeaders() });
+        return Response.json(
+          { ok: false, error: "hostId required" },
+          { status: 400, headers: corsHeaders() },
+        );
       }
 
       const isRestore = body.restore === true && typeof body.id === "string";
@@ -175,11 +189,35 @@ export class Room extends Server<Env> {
       if (isRestore) {
         await this.seedMembers(body.members ?? []);
         await this.recordRoomRevived(settings.id);
+        // Continue the message-log seq past the prior session's D1 rows (this DO
+        // was wiped on the room's end, but those rows share this room_id).
+        await this.log.resumeFrom(settings.id);
       } else {
         await this.recordRoomCreated(settings);
       }
 
       return Response.json({ ok: true, roomCode: this.name }, { headers: corsHeaders() });
+    }
+
+    // GET .../admin/room/<code>/messages?since=<seq>&limit=<n> — the monitor's
+    // live tail: buffered log entries with seq > since (see messageLog.ts). Like
+    // the rest of /admin/*, reachable only via the admin Worker's service
+    // binding, never the public internet.
+    if (
+      req.method === "GET" &&
+      url.pathname.startsWith("/admin/room/") &&
+      url.pathname.endsWith("/messages")
+    ) {
+      const since = Number(url.searchParams.get("since") ?? "-1");
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "200"), 1), 500);
+      const { messages, nextSeq, oldestSeq } = await this.log.tail(
+        Number.isFinite(since) ? since : -1,
+        Number.isFinite(limit) ? limit : 200,
+      );
+      return Response.json(
+        { messages, nextSeq, oldestSeq, live: this.settings !== null },
+        { headers: corsHeaders({ "Cache-Control": "no-store" }) },
+      );
     }
 
     // GET .../admin/room/<code> — rich live status for the admin monitor. Only
@@ -285,7 +323,10 @@ export class Room extends Server<Env> {
     }
 
     const metadata: MemberMetadata = {
-      twitch: await authenticateWithTwitch(handshakeMetadata.twitchAccessToken, this.env.TWITCH_CLIENT_ID),
+      twitch: await authenticateWithTwitch(
+        handshakeMetadata.twitchAccessToken,
+        this.env.TWITCH_CLIENT_ID,
+      ),
     };
 
     const existing = this.members.get(userId);
@@ -369,7 +410,10 @@ export class Room extends Server<Env> {
 
   private handleHostMessage(envelope: Envelope) {
     if (envelope.type === "member.update") {
-      const { to, data } = (envelope.payload ?? {}) as { to?: string | string[]; data?: Partial<MemberState> };
+      const { to, data } = (envelope.payload ?? {}) as {
+        to?: string | string[];
+        data?: Partial<MemberState>;
+      };
       if (to === undefined || data === undefined) return;
       void this.updateMemberStates([to].flat(), data);
       return;
@@ -389,14 +433,26 @@ export class Room extends Server<Env> {
     const payload = envelope.payload as { event?: string; value?: unknown } | undefined;
     if (!payload) return;
 
+    const timestamp = Date.now();
     this.sendToHosts(
       this.encode(envelope.type, {
         from: state.userId,
         event: payload.event,
         message: payload,
-        timestamp: Date.now(),
+        timestamp,
       }),
     );
+
+    // Tap for the admin monitor (member -> host).
+    this.log.append({
+      direction: "member_to_host",
+      type: envelope.type,
+      from: state.userId,
+      to: null,
+      event: payload.event ?? null,
+      payload,
+      timestamp,
+    });
   }
 
   // Apply a host state update to the named recipients: sanitize, cache for
@@ -405,6 +461,7 @@ export class Room extends Server<Env> {
   // resolved recipients against existing `members` rows.
   private async updateMemberStates(recipients: string[], newState: Partial<MemberState>) {
     const state = sanitizeState(newState);
+    const timestamp = Date.now();
 
     for (const userId of recipients) {
       const record = this.members.get(userId);
@@ -419,6 +476,18 @@ export class Room extends Server<Env> {
           conn.send(this.encode("state.member", state));
         }
       }
+
+      // Tap for the admin monitor (host -> member). Logged per recipient, like
+      // the host's `member.update` fans out per recipient.
+      this.log.append({
+        direction: "host_to_member",
+        type: "state.member",
+        from: null,
+        to: userId,
+        event: null,
+        payload: state,
+        timestamp,
+      });
     }
   }
 
@@ -458,6 +527,9 @@ export class Room extends Server<Env> {
       this.fail(conn, "This room has expired.");
     }
     await this.recordRoomEnded("expired");
+    // Persist any unflushed monitor log to D1 before the storage is wiped, so the
+    // permanent record survives the room's self-destruct.
+    await this.log.flush();
     await this.ctx.storage.deleteAll();
     this.settings = null;
     this.members.clear();
@@ -494,7 +566,9 @@ export class Room extends Server<Env> {
   // the per-member UI state is left at the default — the host re-drives each
   // screen on reconnect (it is authoritative), and live UI state is never
   // persisted to D1 (that would be heavy write amplification during gameplay).
-  private async seedMembers(seed: { userId?: string; userName?: string; metadata?: MemberMetadata }[]) {
+  private async seedMembers(
+    seed: { userId?: string; userName?: string; metadata?: MemberMetadata }[],
+  ) {
     for (const m of seed) {
       if (!m.userId) continue;
       const userName = m.userName ?? "";
@@ -518,7 +592,10 @@ export class Room extends Server<Env> {
       return Response.json({ destroyed: false, reason: "not live" }, { headers: corsHeaders() });
     }
     if (expectedId && this.settings.id !== expectedId) {
-      return Response.json({ destroyed: false, reason: "different instance" }, { headers: corsHeaders() });
+      return Response.json(
+        { destroyed: false, reason: "different instance" },
+        { headers: corsHeaders() },
+      );
     }
     for (const conn of this.getConnections<ConnState>()) {
       this.fail(conn, "This room has been deleted.");
@@ -628,10 +705,14 @@ export class Room extends Server<Env> {
       return Response.json({ updated: false, reason: "not live" }, { headers: corsHeaders() });
     }
     if (body?.id && this.settings.id !== body.id) {
-      return Response.json({ updated: false, reason: "different instance" }, { headers: corsHeaders() });
+      return Response.json(
+        { updated: false, reason: "different instance" },
+        { headers: corsHeaders() },
+      );
     }
 
-    if (typeof body?.twitchRequired === "boolean") this.settings.twitchRequired = body.twitchRequired;
+    if (typeof body?.twitchRequired === "boolean")
+      this.settings.twitchRequired = body.twitchRequired;
     if (typeof body?.closed === "boolean") this.settings.closed = body.closed;
     if (typeof body?.persistent === "boolean") this.settings.persistent = body.persistent;
     await this.ctx.storage.put("settings", this.settings);

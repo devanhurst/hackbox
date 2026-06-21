@@ -4,6 +4,11 @@ export function fmt(ts: number | null | undefined): string {
   return ts ? new Date(ts).toLocaleString() : "—";
 }
 
+// Clock time (HH:MM:SS) for the dense monitor feed, where the date is noise.
+export function fmtTime(ts: number | null | undefined): string {
+  return ts ? new Date(ts).toLocaleTimeString() : "—";
+}
+
 // Status pill: ended (history) / gone (live record but DO absent) / host
 // connected / no host. Mirrors the original admin's statusBadge logic.
 export function statusInfo(r: AdminRoom): {
