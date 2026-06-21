@@ -109,6 +109,92 @@ export async function fetchMembersByRoom(
   return byRoom;
 }
 
+// A relayed frame as the admin monitor consumes it. Mirrors the relay's
+// LoggedMessage (relay/src/messageLog.ts) and a `messages` row (db/schema.sql).
+export interface AdminMessage {
+  seq: number;
+  direction: "member_to_host" | "host_to_member";
+  type: "msg" | "change" | "state.member";
+  from: string | null;
+  to: string | null;
+  event: string | null;
+  payload: unknown;
+  timestamp: number;
+}
+
+interface MessageRow {
+  seq: number;
+  direction: string;
+  type: string;
+  from_user: string | null;
+  to_user: string | null;
+  event: string | null;
+  payload: string | null;
+  timestamp: number;
+}
+
+function mapMessageRow(r: MessageRow): AdminMessage {
+  return {
+    seq: r.seq,
+    direction: r.direction as AdminMessage["direction"],
+    type: r.type as AdminMessage["type"],
+    from: r.from_user,
+    to: r.to_user,
+    event: r.event,
+    payload: r.payload == null ? null : (parseMetadata(r.payload) ?? r.payload),
+    timestamp: r.timestamp,
+  };
+}
+
+// Page the permanent message history (D1) for a room *instance* backwards from a
+// cursor: rows with seq < before, newest first, returned oldest-first so the
+// monitor can prepend them. Used for "load older" and for ended rooms whose
+// live DO buffer is gone.
+export async function fetchMessageHistory(
+  db: D1Database,
+  roomId: string,
+  before: number,
+  limit: number,
+): Promise<AdminMessage[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT seq, direction, type, from_user, to_user, event, payload, timestamp
+         FROM messages WHERE room_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?`,
+    )
+    .bind(roomId, before, limit)
+    .all<MessageRow>();
+  return results.map(mapMessageRow).reverse();
+}
+
+// Live tail from the relay's DO buffer: entries with seq > since (near-real-time
+// monitor feed). Returns null if the relay is unreachable so the caller can fall
+// back to D1 history.
+export async function fetchLiveMessages(
+  env: AdminEnv,
+  code: string,
+  since: number,
+  limit: number,
+): Promise<{ messages: AdminMessage[]; nextSeq: number; oldestSeq: number | null } | null> {
+  try {
+    const res = await env.RELAY.fetch(
+      new Request(`https://relay/admin/room/${code}/messages?since=${since}&limit=${limit}`),
+    );
+    if (!res.ok) return null;
+    const p = (await res.json()) as {
+      messages?: AdminMessage[];
+      nextSeq?: number;
+      oldestSeq?: number | null;
+    };
+    return {
+      messages: p.messages ?? [],
+      nextSeq: p.nextSeq ?? since + 1,
+      oldestSeq: p.oldestSeq ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Overlay live presence from the relay onto a room's D1 roster: flips members
 // online, merges in any currently-connected members not yet flushed to D1, and
 // returns live/host/expiry. Mutates `members`.

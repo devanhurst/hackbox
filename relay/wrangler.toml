@@ -20,10 +20,7 @@ workers_dev = false
 routes = [{ pattern = "hackbox.ca/r/*", zone_name = "hackbox.ca" }]
 
 [durable_objects]
-bindings = [
-  { name = "Main", class_name = "Room" },
-  { name = "Registry", class_name = "Registry" },
-]
+bindings = [{ name = "Main", class_name = "Room" }, { name = "Registry", class_name = "Registry" }]
 
 [[migrations]]
 tag = "v1"
@@ -34,11 +31,18 @@ tag = "v2"
 new_sqlite_classes = ["Registry"]
 
 # Permanent room history. The Room DO writes a row on creation and stamps
-# ended_at on expiry. Schema: db/schema.sql (repo root).
+# ended_at on expiry. It also batches the admin monitor's message log here
+# (db/schema.sql `messages`). Schema: db/schema.sql (repo root).
 [[d1_databases]]
 binding = "DB"
 database_name = "hackbox"
 database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"
+
+# Daily retention sweep for the `messages` log — the `scheduled` handler in
+# src/index.ts deletes rows past the 30-day window so D1 stays under its size
+# cap. 04:00 UTC, off-peak.
+[triggers]
+crons = ["0 4 * * *"]
 
 # TWITCH_CLIENT_ID is a secret, set via `wrangler secret put TWITCH_CLIENT_ID`
 # (not committed here). The DO reads it from `env` to authenticate members.

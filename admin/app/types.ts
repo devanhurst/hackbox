@@ -34,3 +34,26 @@ export interface RoomResponse {
   room?: AdminRoom;
   error?: string;
 }
+
+// A relayed frame in the admin monitor feed (relay/src/messageLog.ts). Oversized
+// payloads arrive as a `{ truncated, bytes, preview }` marker instead of the raw
+// value.
+export interface AdminMessage {
+  seq: number;
+  direction: "member_to_host" | "host_to_member";
+  type: "msg" | "change" | "state.member";
+  from: string | null;
+  to: string | null;
+  event: string | null;
+  payload: unknown;
+  timestamp: number;
+}
+
+export interface MessagesResponse {
+  messages: AdminMessage[];
+  nextSeq?: number;
+  oldestSeq?: number | null;
+  source: "live" | "history";
+  hasMore?: boolean;
+  error?: string;
+}

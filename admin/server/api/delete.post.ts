@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       method: "DELETE",
     }),
   );
+  await env.DB.prepare(`DELETE FROM messages WHERE room_id = ?`).bind(id).run();
   await env.DB.prepare(`DELETE FROM members WHERE room_id = ?`).bind(id).run();
   await env.DB.prepare(`DELETE FROM rooms WHERE id = ?`).bind(id).run();
 

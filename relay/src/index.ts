@@ -7,6 +7,27 @@ export { Room, Registry };
 interface Env {
   Main: DurableObjectNamespace<Room>;
   Registry: DurableObjectNamespace<Registry>;
+  DB: D1Database;
+}
+
+// Retention for the permanent message log (db/schema.sql `messages`). The DO
+// keeps everything for the room's life; this daily cron bounds the durable copy
+// so D1 stays well under its size cap (see the scheduled handler below).
+const MESSAGE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// Delete message rows past the retention window, chunked so a single statement
+// never deletes an unbounded number of rows (D1 has no DELETE ... LIMIT).
+async function purgeOldMessages(db: D1Database): Promise<void> {
+  const cutoff = Date.now() - MESSAGE_RETENTION_MS;
+  for (let i = 0; i < 1000; i++) {
+    const res = await db
+      .prepare(
+        `DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE timestamp < ? LIMIT 500)`,
+      )
+      .bind(cutoff)
+      .run();
+    if ((res.meta?.changes ?? 0) < 500) break;
+  }
 }
 
 // Worker entry. We route `/r/<code>` ourselves rather than using partyserver's
@@ -43,5 +64,10 @@ export default {
     }
 
     return new Response("Not Found", { status: 404 });
+  },
+
+  // Daily retention sweep for the permanent message log (cron in wrangler.toml).
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(purgeOldMessages(env.DB));
   },
 } satisfies ExportedHandler<Env>;

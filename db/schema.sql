@@ -40,3 +40,30 @@ CREATE TABLE IF NOT EXISTS members (
 
 CREATE INDEX IF NOT EXISTS idx_members_room_id ON members (room_id);
 CREATE INDEX IF NOT EXISTS idx_members_user_id ON members (user_id);
+
+-- Permanent message history. One row per relayed frame the admin monitor cares
+-- about: member submissions (`msg`), work-in-progress (`change`), and the
+-- host->member UI pushes (`state.member`). The relay's Room DO keeps a durable,
+-- ring-trimmed log in its own storage (which powers the near-real-time monitor
+-- tail + pre-join history while the room is alive) and *batches* those entries
+-- into this table so the record survives the room's 24h self-destruct. Batching
+-- — rather than a write per frame — keeps the chatty `change`/`state.member`
+-- traffic from amplifying into per-message D1 writes.
+--
+-- `seq` is a per-room-instance monotonic counter the relay assigns; it is the
+-- stable cursor the monitor pages by (timestamps can collide under load).
+CREATE TABLE IF NOT EXISTS messages (
+  id         TEXT PRIMARY KEY,   -- uuid
+  room_id    TEXT NOT NULL,      -- references rooms.id (the room instance)
+  room_code  TEXT NOT NULL,
+  seq        INTEGER NOT NULL,   -- monotonic per room instance (the page cursor)
+  direction  TEXT NOT NULL,      -- 'member_to_host' | 'host_to_member'
+  type       TEXT NOT NULL,      -- 'msg' | 'change' | 'state.member'
+  from_user  TEXT,               -- sender userId (member frames)
+  to_user    TEXT,               -- recipient userId (state.member frames)
+  event      TEXT,               -- payload.event for msg/change, null otherwise
+  payload    TEXT,               -- JSON value (truncated if oversized)
+  timestamp  INTEGER NOT NULL    -- unix ms
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_room_seq ON messages (room_id, seq);
