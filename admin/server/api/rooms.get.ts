@@ -1,14 +1,8 @@
 import { type RoomRow, fetchMembersByRoom, mapRow, overlayPresence } from "../utils/rooms";
 
-// Listing = permanent history from D1, newest first. Returns counts only (the
-// per-room roster is fetched on demand by the detail view).
-//
-// Server-side filters (query params):
+// Query params:
 //   status — "active" (default; ended_at IS NULL), "ended", or "all"
 //   code   — case-insensitive substring match on the room code
-// "active" is the default so the initial fetch only loads rooms still running;
-// the finer live/gone/host distinctions need relay presence (overlaid below) and
-// stay client-side.
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
 
@@ -39,8 +33,6 @@ export default defineEventHandler(async (event) => {
     return { rooms: [], error: `D1 query failed: ${e}` };
   }
 
-  // Member rosters for all listed rooms, grouped by room. Chunked under D1's
-  // bound-variable cap so large histories don't blow the IN (...) clause.
   const membersByRoom = await fetchMembersByRoom(
     env.DB,
     results.map((r) => r.id),

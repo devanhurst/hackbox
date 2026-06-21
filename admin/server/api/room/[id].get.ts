@@ -1,6 +1,5 @@
 import { type RoomRow, fetchMembers, mapRow, overlayPresence } from "../../utils/rooms";
 
-// Detail = a single room with its full member roster (+ live presence if active).
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
   const id = getRouterParam(event, "id") ?? "";

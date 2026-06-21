@@ -9,17 +9,13 @@ const isDev = import.meta.env.DEV;
 export default {
   clientUrl:
     import.meta.env.VITE_CLIENT_URL || (isDev ? "http://localhost:9001" : window.location.origin),
-  // HTTP API (the hackbox-api Worker), served under the apex /api prefix.
   apiUrl:
     import.meta.env.VITE_API_URL ||
     (isDev ? "http://localhost:8787/api" : `${window.location.origin}/api`),
-  // Realtime relay host for the WebSocket connection (the hackbox-relay Worker).
   // Host[:port] only — no protocol or path; the SDK adds the "/r" prefix and
   // partysocket infers ws/wss.
   relayHost: import.meta.env.VITE_RELAY_HOST || (isDev ? "localhost:1999" : window.location.host),
-  // Legacy socket.io server (the old Render deployment) for backward compat with
-  // rooms hosted by not-yet-updated Unity games. Used as a fallback when a room
-  // isn't found on the new relay.
+  // Fallback for rooms hosted by not-yet-updated Unity games on the old server.
   legacyServerUrl: import.meta.env.VITE_LEGACY_SERVER_URL || "https://app.hackbox.ca",
   sentryEnabled: import.meta.env.VITE_SENTRY_ENABLED === "true",
   sentryDomain: import.meta.env.VITE_SENTRY_DOMAIN,

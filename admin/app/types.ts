@@ -1,5 +1,3 @@
-// Shapes returned by the admin server routes (server/api/*).
-
 export interface AdminMember {
   userId: string;
   userName: string;
@@ -35,9 +33,8 @@ export interface RoomResponse {
   error?: string;
 }
 
-// A relayed frame in the admin monitor feed (relay/src/messageLog.ts). Oversized
-// payloads arrive as a `{ truncated, bytes, preview }` marker instead of the raw
-// value.
+// Oversized payloads arrive as a `{ truncated, bytes, preview }` marker instead
+// of the raw value.
 export interface AdminMessage {
   seq: number;
   direction: "member_to_host" | "host_to_member";

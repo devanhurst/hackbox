@@ -1,8 +1,5 @@
-// Twitch identity lookup, ported from the legacy server's `server/lib/twitch.ts`.
-// The original was already `fetch`-based and therefore runs unchanged on the
-// Workers runtime — the only change is sourcing the client id from the Worker
-// `env` binding rather than `process.env`. This stays server-side (in the DO)
-// because it needs the TWITCH_CLIENT_ID secret, which must never reach a client.
+// Stays server-side (in the DO): needs the TWITCH_CLIENT_ID secret, which must
+// never reach a client.
 
 export interface TwitchMetadata {
   id: string;

@@ -1,11 +1,3 @@
-// Member UI-state helpers, ported verbatim (in behaviour) from the legacy
-// Node server's `server/helpers.ts` and `server/models/Member.ts`. These are
-// pure functions with no Node-only dependencies, so they run unchanged on the
-// Workers runtime. The relay is otherwise a dumb message router — the *only*
-// hackbox-specific knowledge it carries is this state shape, because it caches
-// the last state addressed to each member and replays it on reconnect (the job
-// the Postgres `members.state` column used to do).
-
 import deepmerge from "@fastify/deepmerge";
 
 interface Component {
@@ -36,11 +28,8 @@ export interface MemberState {
   presets?: { [key: string]: Component };
 }
 
-// Strip NUL bytes (U+0000) from every string in a value. Carried over from the
-// legacy server (SERVER-3QY): Postgres rejected NUL bytes in the text/jsonb
-// columns that handshake input flowed into. DO storage tolerates them, but the
-// guard is kept so a host/member-supplied NUL can't corrupt persisted state or
-// leak into downstream consumers that do choke on it.
+// Strip NUL bytes (U+0000): kept so a host/member-supplied NUL can't corrupt
+// persisted state or leak into downstream consumers that choke on it.
 export const stripNullBytes = <T>(value: T): T => {
   if (typeof value === "string") {
     return value.replaceAll("\u0000", "") as T;
@@ -56,8 +45,7 @@ export const stripNullBytes = <T>(value: T): T => {
   return value;
 };
 
-// The blank canvas every member state is merged onto. Mirrors
-// `emptyMemberState()` in the legacy server's helpers.ts.
+// The blank canvas every member state is merged onto.
 const emptyMemberState = (): MemberState => ({
   theme: {
     header: {
@@ -80,8 +68,6 @@ const emptyMemberState = (): MemberState => ({
   },
 });
 
-// The "Hang tight!" holding screen a member sees before the host has pushed any
-// UI. Mirrors `defaultMemberState()` in the legacy server's helpers.ts.
 export const defaultMemberState = (userName: string): Partial<MemberState> => ({
   ui: {
     header: {
@@ -108,9 +94,8 @@ export const defaultMemberState = (userName: string): Partial<MemberState> => ({
   },
 });
 
-// Merge an incoming (possibly partial) state onto the empty canvas and stamp a
-// stable-ish key onto each component so the Vue client can keep its v-for keys
-// consistent. Mirrors `sanitizeState()` in the legacy server's helpers.ts.
+// Stamps a stable-ish key onto each component so the Vue client can keep its
+// v-for keys consistent.
 export const sanitizeState = (state: Partial<MemberState>): MemberState => {
   const merge = deepmerge();
   const newState = merge(emptyMemberState(), state ?? {}) as MemberState;

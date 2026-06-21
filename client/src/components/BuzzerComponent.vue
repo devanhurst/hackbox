@@ -66,7 +66,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* The host's style object is applied inline above (any standard CSS). */
 .buzzer-button {
   margin: 0;
   cursor: pointer;

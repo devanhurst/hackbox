@@ -1,20 +1,9 @@
-// Talks to the hackbox-relay Worker over a service binding. The relay owns all
-// room state (in its `Room` Durable Object), so the api Worker is a thin HTTP
-// front door: it allocates a unique code and asks the relay to initialise the
-// room, then answers existence probes. Requests go through the relay Worker's
-// fetch handler, which resolves the DO by name from the `/r/<code>` path so
-// `this.name` inside the DO is the room code.
-
-// The host of this URL is irrelevant over a service binding (only the path is
-// routed); a stable placeholder keeps the requests readable in logs. The
-// `/r/<code>` path must match the relay Worker's router (and the client SDK's
+// The `/r/<code>` path must match the relay Worker's router (and the client SDK's
 // partysocket basePath).
 const RELAY_ORIGIN = "https://hackbox-relay";
 
 const roomPath = (code: string) => `${RELAY_ORIGIN}/r/${code}`;
 
-// 4-character consonant code, ported verbatim from the legacy
-// `server/models/Room.ts:generateRoomCode()`.
 const CONSONANTS = "BCDFGHJKLMNPQRSTVWXZ".split("");
 export const generateRoomCode = (): string =>
   [1, 2, 3, 4].map(() => CONSONANTS[Math.floor(Math.random() * CONSONANTS.length)]).join("");
@@ -30,8 +19,7 @@ export interface RoomProbe {
 export class RelayClient {
   constructor(private relay: Fetcher) {}
 
-  // Ask the relay to initialise a freshly-allocated room. Returns false on a
-  // 409 (the code is already taken) so the caller can retry with a new code.
+  // 409 means the code is already taken; returns false so the caller retries.
   async initRoom(code: string, hostId: string, twitchRequired: boolean): Promise<boolean> {
     const res = await this.relay.fetch(
       new Request(`${roomPath(code)}/init`, {

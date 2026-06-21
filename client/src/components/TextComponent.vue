@@ -24,7 +24,6 @@ const props = mergeProps(
 );
 
 const text = computed(() => markdown(props.text));
-// `align` is a deprecated alias for `textAlign` (see applyLegacyAlign).
 const style = computed(() => applyLegacyAlign(props.style));
 </script>
 
@@ -33,8 +32,6 @@ const style = computed(() => applyLegacyAlign(props.style));
 </template>
 
 <style scoped>
-/* The host's style object is applied inline above (any standard CSS). Only
-   structural layout lives here. */
 .textbox {
   display: flex;
   justify-content: center;

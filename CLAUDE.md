@@ -171,8 +171,8 @@ A single D1 database, `hackbox`, holding **permanent room + member history only*
   add rows); references `rooms.id` via `room_id`.
 
 Written by the **relay**, read by the **admin** — both bind `DB` in their
-`wrangler.toml`. See `db/README.md` for the full rationale and the one-time
-Postgres → D1 import. D1 caps **100 bound variables per statement**, so chunk
+`wrangler.toml`. See `db/README.md` for the full rationale. D1 caps **100 bound
+variables per statement**, so chunk
 any `IN (...)` over a variable-length list (see `fetchMembersByRoom` in
 `admin/server/utils/rooms.ts`).
 
@@ -182,8 +182,7 @@ The original Node/Express/Socket.io + Postgres (Drizzle ORM) service. Kept
 running on Render **read-mostly** during the host-deprecation window so rooms
 hosted by not-yet-updated Unity games keep working (the client falls back to it
 via `legacySocket.ts`). **Don't build new features here** — it will be retired
-once Unity hosts have migrated. It still holds the Postgres → D1 migration
-scripts (`server/scripts/migrate-to-d1.ts`).
+once Unity hosts have migrated.
 
 ## Development Commands
 

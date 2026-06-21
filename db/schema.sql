@@ -1,11 +1,7 @@
 -- Permanent room history (D1). One row per room *instance*: 4-character codes
 -- are recycled over time, so the code is not a stable key — `id` is. Rows are
 -- never deleted; a room's end is recorded via `ended_at` + `end_reason`
--- ('expired' | 'closed' | 'migrated'). The relay's Room DO writes a row on
--- creation and stamps `ended_at` when its 24h alarm fires.
---
--- Mirrors the legacy Postgres `rooms` table (host_id / twitch_required /
--- persistent / closed / created_at), plus the lifecycle columns for permanence.
+-- ('expired' | 'closed' | 'migrated').
 
 CREATE TABLE IF NOT EXISTS rooms (
   id              TEXT PRIMARY KEY,
@@ -41,17 +37,11 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE INDEX IF NOT EXISTS idx_members_room_id ON members (room_id);
 CREATE INDEX IF NOT EXISTS idx_members_user_id ON members (user_id);
 
--- Permanent message history. One row per relayed frame the admin monitor cares
--- about: member submissions (`msg`), work-in-progress (`change`), and the
--- host->member UI pushes (`state.member`). The relay's Room DO keeps a durable,
--- ring-trimmed log in its own storage (which powers the near-real-time monitor
--- tail + pre-join history while the room is alive) and *batches* those entries
--- into this table so the record survives the room's 24h self-destruct. Batching
--- — rather than a write per frame — keeps the chatty `change`/`state.member`
--- traffic from amplifying into per-message D1 writes.
+-- The relay batches frames into this table — rather than a write per frame — so
+-- the chatty `change`/`state.member` traffic doesn't amplify into per-message D1
+-- writes, and so the record survives the room's 24h self-destruct.
 --
--- `seq` is a per-room-instance monotonic counter the relay assigns; it is the
--- stable cursor the monitor pages by (timestamps can collide under load).
+-- `seq` is the stable cursor the monitor pages by (timestamps can collide under load).
 CREATE TABLE IF NOT EXISTS messages (
   id         TEXT PRIMARY KEY,   -- uuid
   room_id    TEXT NOT NULL,      -- references rooms.id (the room instance)

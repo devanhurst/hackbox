@@ -102,9 +102,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* The host's style object is applied inline to the wrapper (any standard CSS);
-   the inner controls inherit its typography and stay transparent so the
-   wrapper's background/border frame the whole row. */
 .range-input-wrapper {
   display: flex;
   flex-direction: row;

@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import type { AdminMember, AdminMessage, MessagesResponse } from "~/types";
 
-// Live activity feed for one room. While `active` (its modal is open) and the
-// room is live, it polls the relay's DO buffer every ~1.5s for new frames
-// (msg / change / state.member) and appends them; "Load older" pages back into
-// the permanent D1 history. Ended rooms render straight from D1 history.
 const props = defineProps<{
   roomId: string;
   live: boolean;
@@ -16,14 +12,12 @@ const apiUrl = useApi();
 const toast = useToast();
 
 const messages = ref<AdminMessage[]>([]);
-const liveCursor = ref(-1); // highest seq held; the live-poll watermark
+const liveCursor = ref(-1);
 const loadingInitial = ref(false);
 const loadingOlder = ref(false);
 const noMoreHistory = ref(false);
 const paused = ref(false);
 
-// Resolve a userId to its display name via the room roster, falling back to the
-// raw id.
 const nameById = computed(() => {
   const map = new Map<string, string>();
   for (const m of props.members ?? []) map.set(m.userId, m.userName || m.userId);
@@ -48,8 +42,6 @@ async function loadInitial() {
   liveCursor.value = -1;
   noMoreHistory.value = false;
   try {
-    // Live rooms seed from the relay buffer (since=-1); ended rooms from the
-    // newest D1 history page.
     const data = await $fetch<MessagesResponse>(
       props.live ? url("since=-1") : url(`before=${Number.MAX_SAFE_INTEGER}`),
     );
@@ -111,7 +103,6 @@ function scheduleAutoScroll() {
   if (nearBottom) nextTick(() => (el.scrollTop = el.scrollHeight));
 }
 
-// Compact one-line payload preview; the full value is shown on expand.
 function preview(m: AdminMessage): string {
   const p = m.payload as Record<string, unknown> | null;
   if (p && typeof p === "object" && "truncated" in p) return `⚠ truncated (${p.bytes} bytes)`;
@@ -139,7 +130,6 @@ function toggle(seq: number) {
   expanded.value = next;
 }
 
-// Polling lifecycle — runs only while the modal is open and the room is live.
 let timer: ReturnType<typeof setInterval> | null = null;
 function stopTimer() {
   if (timer) clearInterval(timer);

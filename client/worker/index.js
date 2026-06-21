@@ -1,7 +1,3 @@
-// Static-assets Worker that serves the built Vue SPA (Vite output in ./dist).
-// `not_found_handling = "single-page-application"` (wrangler.toml) answers any
-// unmatched path with index.html so client-side routing works.
-
 // Vite emits content-hashed build assets under this prefix. A request for a
 // hash that no longer exists means a tab is running a pre-deploy build.
 const BUILD_ASSET_PREFIX = "/assets/";

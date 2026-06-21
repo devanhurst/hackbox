@@ -1,10 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { AdminEnv } from "./env";
 
-// Shared helpers for the admin server routes. The room listing is permanent
-// history read from D1; live presence for active rooms is fetched from the relay
-// over the service binding. Ported from the original Hono Worker.
-
 export interface RoomRow {
   id: string;
   code: string;
@@ -109,8 +105,6 @@ export async function fetchMembersByRoom(
   return byRoom;
 }
 
-// A relayed frame as the admin monitor consumes it. Mirrors the relay's
-// LoggedMessage (relay/src/messageLog.ts) and a `messages` row (db/schema.sql).
 export interface AdminMessage {
   seq: number;
   direction: "member_to_host" | "host_to_member";
@@ -146,10 +140,6 @@ function mapMessageRow(r: MessageRow): AdminMessage {
   };
 }
 
-// Page the permanent message history (D1) for a room *instance* backwards from a
-// cursor: rows with seq < before, newest first, returned oldest-first so the
-// monitor can prepend them. Used for "load older" and for ended rooms whose
-// live DO buffer is gone.
 export async function fetchMessageHistory(
   db: D1Database,
   roomId: string,
@@ -166,9 +156,6 @@ export async function fetchMessageHistory(
   return results.map(mapMessageRow).reverse();
 }
 
-// Live tail from the relay's DO buffer: entries with seq > since (near-real-time
-// monitor feed). Returns null if the relay is unreachable so the caller can fall
-// back to D1 history.
 export async function fetchLiveMessages(
   env: AdminEnv,
   code: string,
@@ -195,9 +182,6 @@ export async function fetchLiveMessages(
   }
 }
 
-// Overlay live presence from the relay onto a room's D1 roster: flips members
-// online, merges in any currently-connected members not yet flushed to D1, and
-// returns live/host/expiry. Mutates `members`.
 export async function overlayPresence(
   env: AdminEnv,
   code: string,

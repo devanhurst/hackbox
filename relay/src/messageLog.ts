@@ -1,29 +1,16 @@
-// Message log — the admin monitor's data source.
-//
-// The relay is a dumb router, but the admin monitor needs to (a) watch every
-// relayed frame in near-real-time and (b) see what happened in a room *before*
-// the monitor was opened. This module gives the Room DO a durable, ring-trimmed
-// log of the frames the monitor cares about:
-//
-//   member -> host : msg, change        (direction "member_to_host")
-//   host -> member : state.member       (direction "host_to_member")
-//
 // Two tiers, by design (see db/schema.sql and CLAUDE.md's note on D1 write
 // amplification):
 //
-//   1. DO storage  — one key per entry (`ml:<seq>`), ring-trimmed. This survives
-//      WebSocket hibernation (the DO is evicted between messages, so an in-memory
-//      buffer would be lost) and powers the monitor's live tail + in-room
-//      history. It lives and dies with the room.
-//   2. D1 `messages` — the same entries, *batched* (not one write per frame) so
-//      the chatty change/state.member traffic doesn't amplify into per-message D1
-//      writes. This is the permanent record; a daily relay cron purges rows past
-//      the retention window (see index.ts) so D1 stays under its size cap.
+//   1. DO storage  — one key per entry (`ml:<seq>`), ring-trimmed. Survives
+//      WebSocket hibernation (an in-memory buffer would be lost), powers the
+//      live tail + in-room history, and lives and dies with the room.
+//   2. D1 `messages` — the same entries, *batched* so chatty change/state.member
+//      traffic doesn't amplify into per-message D1 writes. The permanent record;
+//      a daily relay cron purges rows past the retention window (see index.ts).
 //
 // `seq` is a per-room-instance monotonic counter and the stable paging cursor
-// (timestamps collide under load). It is assigned synchronously in append() so
-// ordering holds even though onMessage can't await; the storage write + any D1
-// flush ride on ctx.waitUntil.
+// (timestamps collide under load), assigned synchronously in append() so
+// ordering holds even though onMessage can't await.
 
 export type MessageDirection = "member_to_host" | "host_to_member";
 export type MessageType = "msg" | "change" | "state.member";
@@ -39,7 +26,6 @@ export interface LoggedMessage {
   timestamp: number;
 }
 
-// What a caller hands to append() — seq/timestamp are stamped here.
 export type NewMessage = Omit<LoggedMessage, "seq">;
 
 interface LogMeta {
@@ -47,28 +33,20 @@ interface LogMeta {
   lastFlushedSeq: number;
 }
 
-// Tuning knobs. All deliberately conservative for a hobby-scale deployment.
 const KEY_PREFIX = "ml:";
 const META_KEY = "mlmeta";
-// Entries kept in DO storage for the live tail, even after they've been flushed
-// to D1. A 1.5s poll never needs more than a handful; this is generous headroom.
+// Entries kept in DO storage for the live tail, even after flush to D1.
 const MAX_BUFFER = 2000;
-// Flush to D1 once this many unflushed entries have accumulated.
 const FLUSH_THRESHOLD = 100;
-// Cap a single stored payload. A full `state.member` screen is usually a few KB,
-// but a pathological host could push much more; truncate so one frame can't
-// blow the DO 128 KiB/value limit or bloat D1.
+// Truncate so one frame can't blow the DO 128 KiB/value limit or bloat D1.
 const MAX_PAYLOAD_BYTES = 8 * 1024;
-// D1 caps a statement at 100 bound variables; each row binds 11 columns, so keep
-// chunks at 9 rows (99 vars) and batch the chunks.
+// D1 caps a statement at 100 bound variables; each row binds 11 columns.
 const ROWS_PER_STATEMENT = 9;
 
 function keyFor(seq: number): string {
   return KEY_PREFIX + String(seq).padStart(16, "0");
 }
 
-// Keep payloads bounded. Returns the value unchanged when it serializes small
-// enough, otherwise a self-describing marker the monitor can render as a preview.
 function clampPayload(payload: unknown): unknown {
   let json: string;
   try {
@@ -89,13 +67,11 @@ export class MessageLog {
     private readonly ctx: DurableObjectState,
     private readonly db: D1Database,
     private readonly code: string,
-    // Resolved lazily: a room's history-row id (settings.id) isn't known until
-    // settings load, and a revive swaps it. Returns null if the room isn't live.
+    // Resolved lazily: settings.id isn't known until settings load, and a revive
+    // swaps it. Returns null if the room isn't live.
     private readonly roomId: () => string | null,
   ) {}
 
-  // Rehydrate counters from storage. Called from the DO's onStart (which runs on
-  // every wake from hibernation), mirroring how members are reloaded there.
   async init(): Promise<void> {
     const meta = await this.ctx.storage.get<LogMeta>(META_KEY);
     if (meta) {
@@ -104,10 +80,8 @@ export class MessageLog {
     }
   }
 
-  // Resume the seq counter past whatever already exists in D1 for this room
-  // instance. A revived room reuses its room_id (settings.id) but comes back on a
-  // wiped DO, so without this its seq would restart at 0 and collide with the
-  // previous session's rows. Called from the DO's restore path.
+  // A revived room reuses its room_id but comes back on a wiped DO, so without
+  // this its seq would restart at 0 and collide with the previous session's rows.
   async resumeFrom(roomId: string): Promise<void> {
     try {
       const row = await this.db
@@ -117,7 +91,7 @@ export class MessageLog {
       const max = row?.maxSeq;
       if (typeof max === "number" && max >= this.nextSeq) {
         this.nextSeq = max + 1;
-        this.lastFlushedSeq = max; // those rows are already in D1
+        this.lastFlushedSeq = max;
         await this.ctx.storage.put<LogMeta>(META_KEY, {
           nextSeq: this.nextSeq,
           lastFlushedSeq: this.lastFlushedSeq,
@@ -128,9 +102,8 @@ export class MessageLog {
     }
   }
 
-  // Record a frame. Seq is assigned synchronously so callers that can't await
-  // (onMessage) still get correct ordering; the durable write + opportunistic
-  // flush ride on waitUntil so the hot path isn't blocked.
+  // Seq is assigned synchronously so callers that can't await (onMessage) still
+  // get correct ordering; the durable write rides on waitUntil.
   append(message: NewMessage): number {
     const seq = this.nextSeq++;
     const entry: LoggedMessage = { ...message, seq, payload: clampPayload(message.payload) };
@@ -149,8 +122,6 @@ export class MessageLog {
     }
   }
 
-  // Batch every not-yet-flushed entry into D1, then ring-trim DO storage. Public
-  // so the DO can force a final flush before it self-destructs on TTL expiry.
   // Best-effort: a failed D1 write leaves lastFlushedSeq untouched, so nothing is
   // trimmed and the entries are retried on the next flush (durability preserved
   // in DO storage meanwhile).
@@ -222,9 +193,8 @@ export class MessageLog {
     await this.ctx.storage.delete([...stale.keys()]);
   }
 
-  // The live tail: buffered entries with seq > since, oldest first. `oldestSeq`
-  // lets the monitor detect when it has scrolled past the buffer and must page
-  // the rest from D1 history instead.
+  // `oldestSeq` lets the monitor detect when it has scrolled past the buffer and
+  // must page the rest from D1 history instead.
   async tail(
     since: number,
     limit: number,

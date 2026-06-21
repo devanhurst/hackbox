@@ -44,7 +44,6 @@ export interface PlayerStatePayload {
 export interface FindRoomResponse {
   exists: boolean;
   twitchRequired?: boolean;
-  // True when the room lives on the legacy socket.io server (app.hackbox.ca)
-  // rather than the new Cloudflare relay — the player connects via socket.io.
+  // True when the room lives on the legacy socket.io server rather than the relay.
   legacy?: boolean;
 }
