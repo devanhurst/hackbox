@@ -221,8 +221,8 @@ export class Room extends Server<Env> {
     }
 
     // GET .../admin/room/<code> — rich live status for the admin monitor. Only
-    // reachable via a direct DO-to-DO call from the Registry (the relay Worker's
-    // only public route is /r/*, and workers_dev is off), never from the public
+    // reachable via the admin Worker's service binding (the relay Worker's only
+    // public route is /r/*, and workers_dev is off), never from the public
     // internet.
     if (req.method === "GET" && url.pathname.startsWith("/admin/room/")) {
       return this.adminStatus();

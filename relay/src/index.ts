@@ -1,12 +1,10 @@
 import { getServerByName } from "partyserver";
 import { Room } from "./main";
-import { Registry } from "./registry";
 
-export { Room, Registry };
+export { Room };
 
 interface Env {
   Main: DurableObjectNamespace<Room>;
-  Registry: DurableObjectNamespace<Registry>;
   DB: D1Database;
 }
 
