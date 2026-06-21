@@ -15,7 +15,8 @@ import { db, rooms, members } from "../db";
 // room id). Writes `migration.sql` for `wrangler d1 execute`.
 
 const lit = (s: string) => "'" + String(s).replace(/'/g, "''") + "'";
-const litOrNull = (s: unknown) => (s == null ? "NULL" : lit(typeof s === "string" ? s : JSON.stringify(s)));
+const litOrNull = (s: unknown) =>
+  s == null ? "NULL" : lit(typeof s === "string" ? s : JSON.stringify(s));
 
 async function main() {
   const allRooms = await db.select().from(rooms);
