@@ -20,7 +20,7 @@ workers_dev = false
 routes = [{ pattern = "hackbox.ca/r/*", zone_name = "hackbox.ca" }]
 
 [durable_objects]
-bindings = [{ name = "Main", class_name = "Room" }, { name = "Registry", class_name = "Registry" }]
+bindings = [{ name = "Main", class_name = "Room" }]
 
 [[migrations]]
 tag = "v1"
@@ -29,6 +29,13 @@ new_sqlite_classes = ["Room"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Registry"]
+
+# Registry was superseded by D1 history and is now removed. Deleting the class
+# drops the binding and any leftover DO instances + their storage (it was no
+# longer instantiated, so there is nothing live to lose).
+[[migrations]]
+tag = "v3"
+deleted_classes = ["Registry"]
 
 # Permanent room history. The Room DO writes a row on creation and stamps
 # ended_at on expiry. It also batches the admin monitor's message log here

@@ -99,9 +99,11 @@ Other files: `relay/src/index.ts` (Worker entry — routes `/r/<code>` and
 (`MemberState`, `defaultMemberState`, `sanitizeState`).
 
 Storage layout (DO): `settings` (room metadata — a room "exists" iff present)
-and `m:${userId}` (per-member replay record). **Note:** `relay/src/registry.ts`
-(the `Registry` DO) is **deprecated** — superseded by D1 history, no longer
-instantiated, kept only so the `v2` DO migration still references a valid class.
+and `m:${userId}` (per-member replay record). **Note:** the old `Registry` DO
+was superseded by D1 history and has been **removed** (deleted via the `v3` DO
+migration in `relay/wrangler.toml`). The `v1`/`v2` migration tags stay as
+applied history — Cloudflare tracks migrations by tag, so past entries can't be
+deleted.
 
 ### API (`api/`) — the HTTP front door
 
