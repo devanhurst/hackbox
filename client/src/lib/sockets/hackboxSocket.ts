@@ -1,20 +1,5 @@
 import PartySocket from "partysocket";
 
-// The hackbox player client's connection to the relay.
-//
-// It wraps a raw-WebSocket `partysocket` connection and re-exposes the same
-// event surface the old socket.io client had (`on`/`emit` over a
-// `{ type, payload }` envelope), so the rest of the client (playerSocket.ts and
-// the components) was unaffected by the socket.io -> raw-WebSocket transport
-// move. The relay is a Cloudflare Durable Object, which speaks raw WS.
-//
-// This used to be a standalone `@hackbox/client` package intended for host
-// integrators too, but hackbox hosts are Unity (see hackbox-unity), not JS, so
-// it now lives here as the player client's connector. Host integrations speak
-// the raw `{ type, payload }` protocol directly — see docs/getting-started.
-//
-//   Player: on("state.member"|"reload"|"error"|"disconnect"), emit("msg"|"change")
-
 // Keepalive ping interval. Browsers never send WebSocket pings on their own and
 // partysocket has no built-in heartbeat, so an idle socket can be silently
 // dropped by consumer-router / CGNAT idle timeouts (observed as code 1006
@@ -40,34 +25,23 @@ const RELAY_PATH_PREFIX = "r";
 const FATAL_CLOSE_THRESHOLD = 4000;
 
 export interface HackboxSocketOptions {
-  /** Relay host, e.g. "hackbox.ca" (prod) or "localhost:1999" (dev). */
   host: string;
-  /** 4-character room code. */
   roomCode: string;
   /** Connect as the host by passing the room's hostId here; any other id joins as a player. */
   userId: string;
-  /** Display name (players only; ignored for the host). */
   userName?: string;
-  /** Arbitrary handshake metadata, e.g. `{ twitchAccessToken }`. */
   metadata?: Record<string, unknown>;
 }
 
 type Listener = (payload: unknown) => void;
 
 export interface HackboxSocket {
-  /** Subscribe to an event. Returns an unsubscribe function. */
   on(event: string, cb: Listener): () => void;
-  /** Unsubscribe a previously-registered listener. */
   off(event: string, cb: Listener): void;
-  /** Send an event to the relay (`msg`, `change`). */
   emit(event: string, payload?: unknown): void;
-  /** Permanently close the connection (no reconnect). */
   close(): void;
-  /** Alias of close(), for socket.io parity. */
   disconnect(): void;
-  /** Whether the underlying socket is currently open. */
   readonly connected: boolean;
-  /** Escape hatch to the underlying transport (partysocket or socket.io). */
   readonly raw: unknown;
 }
 

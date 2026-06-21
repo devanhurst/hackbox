@@ -5,10 +5,6 @@ import { Mode } from "vanilla-jsoneditor";
 const deviceConnection = ref<any>(null);
 const roomCode = ref<string | null>(null);
 
-// Starter samples. Each is a complete member state — pick one to load it into
-// the editor (and push it to a connected device). They lean into the styling
-// the components support: any standard CSS (gradients, box-shadow, radius) plus
-// any Google Font, presets, and Markdown.
 const samples: { name: string; payload: any }[] = [
   {
     name: "🎉 Lobby",
@@ -302,7 +298,6 @@ const json = ref<any>(samples[0].payload);
 
 const loadSample = (sample: { name: string; payload: any }) => {
   json.value = sample.payload;
-  // Push immediately so a connected device updates the moment you pick a sample.
   deviceConnection.value?.sendUpdate(sample.payload);
 };
 

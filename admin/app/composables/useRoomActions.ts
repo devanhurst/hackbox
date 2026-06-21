@@ -1,6 +1,3 @@
-// Shared room mutations (revive / delete / save settings). Each performs the
-// request, surfaces a toast, and resolves to whether it succeeded so callers can
-// refresh and close UI.
 export function useRoomActions() {
   const toast = useToast();
   const apiUrl = useApi();

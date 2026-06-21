@@ -1,8 +1,5 @@
 import type { RoomRow } from "../utils/rooms";
 
-// Update a room's settings (twitchRequired / persistent / closed). Always writes
-// the D1 history row; if the room is live, also patches the Room DO (which
-// reconciles its expiry alarm to the new persistence setting).
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
   const body = await readBody<Record<string, unknown>>(event).catch(
@@ -31,7 +28,6 @@ export default defineEventHandler(async (event) => {
     .bind(twitchRequired ? 1 : 0, persistent ? 1 : 0, closed ? 1 : 0, id)
     .run();
 
-  // Live room → patch the Room DO so the change (and its alarm) takes effect now.
   if (row.ended_at == null) {
     await env.RELAY.fetch(
       new Request(`https://relay/admin/room/${row.code}`, {

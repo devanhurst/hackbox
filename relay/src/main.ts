@@ -3,42 +3,31 @@ import { MessageLog } from "./messageLog";
 import { defaultMemberState, sanitizeState, stripNullBytes, type MemberState } from "./roomState";
 import { authenticateWithTwitch, type TwitchMetadata } from "./twitch";
 
-// ---------------------------------------------------------------------------
-// Wire protocol
-// ---------------------------------------------------------------------------
-// Every WebSocket frame is a JSON envelope `{ type, payload }`. The hackbox
-// client SDK maps this 1:1 onto the legacy socket.io API: `socket.emit(type,
-// payload)` sends `{ type, payload }`, and `socket.on(type, cb)` dispatches
-// `payload` to `cb`. That preserves the *application* protocol (event names +
-// payloads documented at app.hackbox.ca/docs) byte-for-byte; only the
-// transport changes from socket.io/engine.io to raw WebSocket.
+// Wire protocol — every WebSocket frame is a JSON envelope `{ type, payload }`:
 //
 //   host -> relay : member.update { to, data }, reload
 //   relay -> host : state.host { members }, msg { ... }, change { ... }
 //   member -> relay: msg { event, value }, change { event, value }
 //   relay -> member: state.member <MemberState>, reload, error { message }
 //
-// The relay is otherwise a dumb router (same role as the jparty relay). Its one
-// stateful job is the *replay cache*: it remembers the last state addressed to
-// each member and replays it on (re)connect — exactly what the Postgres
-// `members.state` column did, now living in DO storage instead.
+// The relay is otherwise a dumb router. Its one stateful job is the *replay
+// cache*: it remembers the last state addressed to each member and replays it on
+// (re)connect.
 
 interface Envelope {
   type: string;
   payload?: unknown;
 }
 
-// Per-connection attachment. Lives in the connection's hibernatable state, so
-// it survives the DO being evicted from memory between messages.
+// Lives in the connection's hibernatable state, so it survives the DO being
+// evicted from memory between messages.
 interface ConnState {
   role: "host" | "member";
   userId: string;
   userName: string;
 }
 
-// Room-level coordination metadata, persisted under the "settings" key. A room
-// "exists" iff this record is present (replacing the `rooms` row). Cached in
-// memory on start and refreshed from storage after a hibernation eviction.
+// Persisted under the "settings" key. A room "exists" iff this record is present.
 interface RoomSettings {
   // Unique per room instance (codes are recycled), used as the D1 history key.
   id: string;
@@ -53,10 +42,9 @@ interface MemberMetadata {
   twitch?: TwitchMetadata;
 }
 
-// Per-member record, persisted under `m:${userId}`. This is the relay's replay
-// cache + presence roster source. `online` is *not* stored — it is derived from
-// whether a live connection for the userId currently exists, matching the
-// legacy server which computed online status from active sockets.
+// Persisted under `m:${userId}`. The relay's replay cache + presence roster
+// source. `online` is *not* stored — it is derived from whether a live
+// connection for the userId currently exists.
 interface MemberRecord {
   userId: string;
   userName: string;
@@ -64,13 +52,11 @@ interface MemberRecord {
   state: MemberState;
 }
 
-// Non-reconnectable close code. The client SDK treats >= 4000 as fatal: stop
-// reconnecting and surface the preceding `error` message (the legacy
-// `disconnect(socket, message)` helper did emit-error-then-disconnect).
+// The client SDK treats close code >= 4000 as fatal: stop reconnecting and
+// surface the preceding `error` message.
 const FATAL_CLOSE = 4000;
 
-// Rooms are ephemeral: they self-destruct 24h after creation unless persistent.
-// This replaces the legacy `cleanup-old-rooms.ts` cron with a DO alarm.
+// Rooms self-destruct 24h after creation unless persistent.
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 
 function corsHeaders(extra: Record<string, string> = {}): Record<string, string> {
@@ -84,22 +70,17 @@ function corsHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 interface Env {
   TWITCH_CLIENT_ID?: string;
-  // Permanent room history (schema in db/schema.sql at the repo root). The Room
-  // DO records its own lifecycle here: a row on creation, ended_at on expiry.
   DB: D1Database;
 }
 
 export class Room extends Server<Env> {
-  // Enable WebSocket Hibernation — the DO is evicted from memory between
-  // messages, so an idle room costs nothing. Durable state lives in storage
-  // (settings + member records) and in each connection's attachment; nothing on
-  // the instance is authoritative beyond the in-memory caches we rehydrate in
-  // onStart().
+  // WebSocket Hibernation: the DO is evicted from memory between messages, so an
+  // idle room costs nothing. Durable state lives in storage + connection
+  // attachments; in-memory caches are rehydrated in onStart().
   static options = { hibernate: true };
 
   private settings: RoomSettings | null = null;
   private members = new Map<string, MemberRecord>();
-  // The admin monitor's durable feed of relayed frames (see messageLog.ts).
   // Constructed in onStart, once `this.name` (the room code) has been set by
   // getServerByName — it isn't available at field-init time.
   private log!: MessageLog;
@@ -113,21 +94,16 @@ export class Room extends Server<Env> {
       this.members.set(record.userId, record);
     }
 
-    // Anchored to the room's history-row id, resolved lazily since a revive can
-    // swap it after the log is built.
     this.log = new MessageLog(this.ctx, this.env.DB, this.name, () => this.settings?.id ?? null);
     await this.log.init();
 
     // Answer client keepalive pings at the edge without waking the DO from
-    // hibernation (mirrors the jparty relay). The client SDK sends "ping" on a
-    // ~25s interval to keep NAT/middlebox idle timeouts from dropping otherwise
-    // silent sockets; re-applied on every start so it survives eviction.
+    // hibernation. The client SDK sends "ping" on a ~25s interval to keep
+    // NAT/middlebox idle timeouts from dropping otherwise silent sockets;
+    // re-applied on every start so it survives eviction.
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
   }
 
-  // -------------------------------------------------------------------------
-  // HTTP surface (room lifecycle + existence checks)
-  // -------------------------------------------------------------------------
   async onRequest(req: Request): Promise<Response> {
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
@@ -135,11 +111,9 @@ export class Room extends Server<Env> {
 
     const url = new URL(req.url);
 
-    // POST .../init — initialise the room (called by the api Worker's
-    // POST /rooms after it has allocated a unique code). Returns 409 if the
-    // room already exists so the caller can retry with a fresh code. A `restore`
-    // payload revives an existing room *in place* (reuses its history row id and
-    // seeds its members back) instead of minting a new instance.
+    // POST .../init — initialise the room. Returns 409 if the room already exists
+    // so the caller can retry with a fresh code. A `restore` payload revives an
+    // existing room *in place* instead of minting a new instance.
     if (req.method === "POST" && url.pathname.endsWith("/init")) {
       if (this.settings) {
         return Response.json(
@@ -154,7 +128,6 @@ export class Room extends Server<Env> {
         persistent?: boolean;
         closed?: boolean;
         createdAt?: number;
-        // Revive an existing room in place.
         restore?: boolean;
         id?: string;
         members?: { userId?: string; userName?: string; metadata?: MemberMetadata }[];
@@ -176,8 +149,8 @@ export class Room extends Server<Env> {
         twitchRequired: Boolean(body.twitchRequired),
         persistent: Boolean(body.persistent),
         closed: Boolean(body.closed),
-        // A revived room starts a fresh session now (its original created_at is
-        // preserved on the history row); a normal create may carry a createdAt.
+        // A revived room starts a fresh session now; its original created_at is
+        // preserved on the history row.
         createdAt: !isRestore && typeof body.createdAt === "number" ? body.createdAt : Date.now(),
       };
       this.settings = settings;
@@ -189,8 +162,6 @@ export class Room extends Server<Env> {
       if (isRestore) {
         await this.seedMembers(body.members ?? []);
         await this.recordRoomRevived(settings.id);
-        // Continue the message-log seq past the prior session's D1 rows (this DO
-        // was wiped on the room's end, but those rows share this room_id).
         await this.log.resumeFrom(settings.id);
       } else {
         await this.recordRoomCreated(settings);
@@ -199,10 +170,9 @@ export class Room extends Server<Env> {
       return Response.json({ ok: true, roomCode: this.name }, { headers: corsHeaders() });
     }
 
-    // GET .../admin/room/<code>/messages?since=<seq>&limit=<n> — the monitor's
-    // live tail: buffered log entries with seq > since (see messageLog.ts). Like
-    // the rest of /admin/*, reachable only via the admin Worker's service
-    // binding, never the public internet.
+    // The monitor's live tail (see messageLog.ts). Like the rest of /admin/*,
+    // reachable only via the admin Worker's service binding, never the public
+    // internet.
     if (
       req.method === "GET" &&
       url.pathname.startsWith("/admin/room/") &&
@@ -220,22 +190,16 @@ export class Room extends Server<Env> {
       );
     }
 
-    // GET .../admin/room/<code> — rich live status for the admin monitor. Only
-    // reachable via the admin Worker's service binding (the relay Worker's only
-    // public route is /r/*, and workers_dev is off), never from the public
-    // internet.
     if (req.method === "GET" && url.pathname.startsWith("/admin/room/")) {
       return this.adminStatus();
     }
 
-    // DELETE .../admin/room/<code>?id=<id> — destroy the live room so its code is
-    // freed (admin "delete"). The optional `id` guards against destroying a
-    // different instance that happens to share the code.
+    // The optional `id` guards against destroying a different instance that
+    // happens to share the code.
     if (req.method === "DELETE" && url.pathname.startsWith("/admin/room/")) {
       return this.destroy(url.searchParams.get("id"));
     }
 
-    // PATCH .../admin/room/<code> — update a live room's settings (admin edit).
     if (req.method === "PATCH" && url.pathname.startsWith("/admin/room/")) {
       const patch = (await req.json().catch(() => null)) as {
         id?: string;
@@ -246,10 +210,8 @@ export class Room extends Server<Env> {
       return this.updateSettings(patch);
     }
 
-    // GET — existence + status probe (replaces `Room.find`). Used by the client
-    // before connecting and by the api Worker's GET /rooms/:code. When a
-    // `userId` is supplied, `isMember` reports whether that user has a record in
-    // this room — the api Worker needs it to hide closed rooms from non-members.
+    // Existence + status probe. `isMember` lets the api Worker hide closed rooms
+    // from non-members.
     if (req.method === "GET") {
       const userId = url.searchParams.get("userId");
       return Response.json(
@@ -267,18 +229,11 @@ export class Room extends Server<Env> {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders() });
   }
 
-  // -------------------------------------------------------------------------
-  // Connection lifecycle
-  // -------------------------------------------------------------------------
   // Identity is derived entirely from the handshake query params (userId,
-  // userName, metadata) — there is no separate `identify` message. This matches
-  // the legacy contract where a host/player simply opens a socket with query
-  // params and starts listening, so existing third-party hosts only need to
-  // swap their transport library, not change their flow.
+  // userName, metadata) — there is no separate `identify` message.
   async onConnect(connection: Connection<ConnState>, ctx: ConnectionContext) {
-    // Scrub NUL bytes from handshake values up front, mirroring the legacy
-    // RoomService.join (SERVER-3QY). Everything downstream — userId, userName,
-    // and the parsed metadata — reads from these.
+    // Scrub NUL bytes from handshake values up front; everything downstream reads
+    // from these.
     const url = new URL(ctx.request.url);
     const userId = stripNullBytes(url.searchParams.get("userId") ?? "");
     const userName = stripNullBytes(url.searchParams.get("userName") ?? "");
@@ -302,7 +257,6 @@ export class Room extends Server<Env> {
 
   private joinAsHost(connection: Connection<ConnState>, userId: string, userName: string) {
     connection.setState({ role: "host", userId, userName });
-    // Bring the freshly connected host up to date with the current roster.
     this.sendStateToHosts();
   }
 
@@ -341,8 +295,7 @@ export class Room extends Server<Env> {
       return;
     }
 
-    // One live connection per user: kick any older device sharing this userId,
-    // mirroring the legacy "You have connected from another device." behaviour.
+    // One live connection per user: kick any older device sharing this userId.
     for (const conn of this.getConnections<ConnState>()) {
       if (conn.id !== connection.id && conn.state?.userId === userId) {
         this.fail(conn, "You have connected from another device.");
@@ -360,35 +313,29 @@ export class Room extends Server<Env> {
 
     this.members.set(userId, record);
     await this.ctx.storage.put(`m:${userId}`, record);
-    // Record first-time joins in the permanent D1 member history (reconnects
-    // already have a record and don't add a row).
     if (!existing) await this.recordMemberJoined(record);
 
     connection.setState({ role: "member", userId, userName });
 
     // Replay the member's last-known UI so a reconnecting player lands back on
-    // their current screen instead of a blank one (the replay-cache job).
+    // their current screen instead of a blank one.
     connection.send(this.encode("state.member", record.state));
 
     this.sendStateToHosts();
   }
 
   async onClose(connection: Connection<ConnState>) {
-    // `online` is derived from live connections, so simply re-broadcasting the
-    // roster after a disconnect flips the right member to offline. (No storage
-    // write needed — the member record persists for reconnect/replay.)
+    // `online` is derived from live connections, so re-broadcasting the roster
+    // after a disconnect flips the right member to offline.
     if (connection.state?.role === "member") {
       this.sendStateToHosts();
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Message routing
-  // -------------------------------------------------------------------------
   onMessage(sender: Connection<ConnState>, message: string | ArrayBuffer | ArrayBufferView) {
     if (typeof message !== "string") return;
-    // Legacy/keepalive frames handled by setWebSocketAutoResponse never reach
-    // here, but guard against stray "ping" strings from older clients anyway.
+    // Keepalive pings are handled by setWebSocketAutoResponse; guard against
+    // stray "ping" strings from older clients anyway.
     if (message === "ping") return;
 
     let envelope: Envelope;
@@ -425,9 +372,7 @@ export class Room extends Server<Env> {
   }
 
   private handleMemberMessage(sender: Connection<ConnState>, state: ConnState, envelope: Envelope) {
-    // `msg` (submitted) and `change` (work-in-progress) share a shape; the relay
-    // stamps the sender and a timestamp and forwards to the host(s), exactly as
-    // the legacy memberSocket did.
+    // `msg` (submitted) and `change` (work-in-progress) share a shape.
     if (envelope.type !== "msg" && envelope.type !== "change") return;
 
     const payload = envelope.payload as { event?: string; value?: unknown } | undefined;
@@ -443,7 +388,6 @@ export class Room extends Server<Env> {
       }),
     );
 
-    // Tap for the admin monitor (member -> host).
     this.log.append({
       direction: "member_to_host",
       type: envelope.type,
@@ -455,10 +399,8 @@ export class Room extends Server<Env> {
     });
   }
 
-  // Apply a host state update to the named recipients: sanitize, cache for
-  // replay, and push to any live connection. Only recipients with an existing
-  // member record are updated — mirrors the legacy `updateMemberStates`, which
-  // resolved recipients against existing `members` rows.
+  // Sanitize, cache for replay, and push to any live connection. Only recipients
+  // with an existing member record are updated.
   private async updateMemberStates(recipients: string[], newState: Partial<MemberState>) {
     const state = sanitizeState(newState);
     const timestamp = Date.now();
@@ -477,8 +419,6 @@ export class Room extends Server<Env> {
         }
       }
 
-      // Tap for the admin monitor (host -> member). Logged per recipient, like
-      // the host's `member.update` fans out per recipient.
       this.log.append({
         direction: "host_to_member",
         type: "state.member",
@@ -491,9 +431,8 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Build the `state.host` roster: every member who has ever joined, with
-  // online derived from live connections. Matches the legacy `updateHostState`
-  // payload shape (id, name, online, metadata, twitchData).
+  // The `state.host` roster: every member who has ever joined, with online
+  // derived from live connections.
   private sendStateToHosts() {
     const onlineUserIds = new Set<string>();
     for (const conn of this.getConnections<ConnState>()) {
@@ -515,31 +454,24 @@ export class Room extends Server<Env> {
     this.sendToHosts(this.encode("state.host", { members }));
   }
 
-  // -------------------------------------------------------------------------
-  // Cleanup
-  // -------------------------------------------------------------------------
   async onAlarm() {
     if (this.settings?.persistent) return; // shouldn't be scheduled, belt-and-suspenders
 
-    // TTL reached: evict the room. Wiping settings makes the room read as
-    // non-existent to future connects (the cleanup cron's DELETE, per-room).
+    // TTL reached: evict the room. Wiping settings makes it read as non-existent
+    // to future connects.
     for (const conn of this.getConnections<ConnState>()) {
       this.fail(conn, "This room has expired.");
     }
     await this.recordRoomEnded("expired");
-    // Persist any unflushed monitor log to D1 before the storage is wiped, so the
-    // permanent record survives the room's self-destruct.
+    // Flush unflushed monitor log to D1 before storage is wiped.
     await this.log.flush();
     await this.ctx.storage.deleteAll();
     this.settings = null;
     this.members.clear();
   }
 
-  // -------------------------------------------------------------------------
-  // Permanent history (D1) + admin monitoring
-  // -------------------------------------------------------------------------
-  // Record the room in the permanent D1 history on creation. Best-effort: a
-  // failed write just means the room isn't recorded; it doesn't break the room.
+  // Best-effort: a failed write just means the room isn't recorded; it doesn't
+  // break the room.
   private async recordRoomCreated(s: RoomSettings) {
     try {
       await this.env.DB.prepare(
@@ -561,11 +493,9 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Seed members back into a revived room from the D1 history. We restore
-  // identity (userId/userName/metadata) so the roster comes back immediately;
-  // the per-member UI state is left at the default — the host re-drives each
-  // screen on reconnect (it is authoritative), and live UI state is never
-  // persisted to D1 (that would be heavy write amplification during gameplay).
+  // Restores identity only; per-member UI state is left at the default — the
+  // host re-drives each screen on reconnect (it is authoritative), and live UI
+  // state is never persisted to D1 (heavy write amplification during gameplay).
   private async seedMembers(
     seed: { userId?: string; userName?: string; metadata?: MemberMetadata }[],
   ) {
@@ -583,10 +513,8 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Tear down the live room (admin delete): close connections and wipe all DO
-  // storage + the expiry alarm so the code is free for reuse. The D1 history row
-  // is removed by the admin Worker. Guarded by `id` so we don't destroy a
-  // different live instance that happens to share the code.
+  // Wipes DO storage + the expiry alarm so the code is free for reuse. Guarded by
+  // `id` so we don't destroy a different live instance that shares the code.
   private async destroy(expectedId: string | null): Promise<Response> {
     if (!this.settings) {
       return Response.json({ destroyed: false, reason: "not live" }, { headers: corsHeaders() });
@@ -607,8 +535,6 @@ export class Room extends Server<Env> {
     return Response.json({ destroyed: true }, { headers: corsHeaders() });
   }
 
-  // Reactivate an existing history row on revive (no new row — the same instance
-  // comes back to life).
   private async recordRoomRevived(id: string) {
     try {
       await this.env.DB.prepare(`UPDATE rooms SET ended_at = NULL, end_reason = NULL WHERE id = ?`)
@@ -619,8 +545,6 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Record a member's first join in the permanent D1 history, linked to this
-  // room *instance* (settings.id). Best-effort, like the room writes.
   private async recordMemberJoined(record: MemberRecord) {
     const settings = this.settings;
     if (!settings) return;
@@ -644,7 +568,7 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Stamp the room's end in D1 (the row is kept forever — history is permanent).
+  // Stamps ended_at; the row itself is kept forever (history is permanent).
   private async recordRoomEnded(reason: string) {
     const id = this.settings?.id;
     if (!id) return;
@@ -659,8 +583,6 @@ export class Room extends Server<Env> {
     }
   }
 
-  // Rich, live snapshot of this room for the admin monitor: settings + lifetime
-  // + presence (host connected, member roster with online status).
   private async adminStatus(): Promise<Response> {
     const onlineUserIds = new Set<string>();
     for (const conn of this.getConnections<ConnState>()) {
@@ -684,7 +606,6 @@ export class Room extends Server<Env> {
       closed: settings?.closed ?? false,
       createdAt: settings?.createdAt ?? null,
       // The actual scheduled DO alarm (null = none, i.e. persistent or expired).
-      // This is the source of truth that confirms the room has a live alarm.
       expiresAt: await this.ctx.storage.getAlarm(),
       hasHost: this.findHostConnection() !== null,
       memberCount: members.length,
@@ -693,11 +614,9 @@ export class Room extends Server<Env> {
     });
   }
 
-  // Update a live room's settings (twitchRequired / persistent / closed) and
-  // reconcile the expiry alarm: persistent rooms drop their alarm; rooms made
+  // Reconciles the expiry alarm: persistent rooms drop their alarm; rooms made
   // ephemeral get a fresh 24h alarm if they don't already have one. Guarded by
-  // `id` so we don't edit a different instance sharing the code. The D1 row is
-  // updated by the admin Worker.
+  // `id` so we don't edit a different instance sharing the code.
   private async updateSettings(
     body: { id?: string; twitchRequired?: boolean; persistent?: boolean; closed?: boolean } | null,
   ): Promise<Response> {
@@ -729,9 +648,6 @@ export class Room extends Server<Env> {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
   private encode(type: string, payload?: unknown): string {
     return JSON.stringify({ type, payload } satisfies Envelope);
   }

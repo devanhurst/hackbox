@@ -46,11 +46,6 @@ const localRoomCode = ref<string | null>(null);
 
 const roomCode = computed(() => localRoomCode.value || props.roomCode);
 
-// Resolve the hackbox backend endpoints. In production the docs are served from
-// the same origin as the api/relay Workers (hackbox.ca), so default to the
-// current origin; in dev point at the local Worker ports. Both are overridable
-// via runtimeConfig (see nuxt.config.ts). Runs client-side only (createRoom is
-// triggered by a click), so window.location is always available.
 function resolveEndpoints() {
   const apiUrl =
     config.public.apiUrl ||
@@ -86,8 +81,6 @@ async function createRoom() {
 
     localRoomCode.value = data.roomCode;
 
-    // Connect to the relay as the host (userId === hostId). On connect the relay
-    // sends the initial `state.host` roster, which also signals we're live.
     socket.value = createHackboxSocket({
       host: relayHost,
       roomCode: data.roomCode,

@@ -20,7 +20,6 @@ const memberColumns: TableColumn<AdminMember>[] = [
   { accessorKey: "userId", header: "User ID" },
 ];
 
-// Edit-settings form state, seeded from the loaded room.
 const edit = reactive({ twitchRequired: false, persistent: false, closed: false });
 const saving = ref(false);
 const reviving = ref(false);
@@ -109,7 +108,6 @@ const info = computed(() => {
       <div v-if="loading" class="text-muted">Loading…</div>
       <div v-else-if="!room" class="text-muted">Not found.</div>
       <div v-else class="space-y-5">
-        <!-- Info grid -->
         <div class="grid grid-cols-[max-content_1fr] gap-x-5 gap-y-2 text-sm">
           <div class="text-muted">Status</div>
           <div><StatusBadge :room="room" /></div>
@@ -121,7 +119,6 @@ const info = computed(() => {
           <div><SettingsBadges :room="room" /></div>
         </div>
 
-        <!-- Edit settings -->
         <div>
           <h3 class="text-xs uppercase tracking-wide text-primary-400 mb-2">Edit settings</h3>
           <div class="flex flex-wrap items-center gap-4">
@@ -134,7 +131,6 @@ const info = computed(() => {
           </div>
         </div>
 
-        <!-- Members -->
         <div>
           <h3 class="text-xs uppercase tracking-wide text-primary-400 mb-2">
             Members ({{ room.members?.length || 0 }})
@@ -166,7 +162,6 @@ const info = computed(() => {
           </div>
         </div>
 
-        <!-- Live activity monitor -->
         <RoomMonitor
           :room-id="room.id"
           :live="isLive(room)"

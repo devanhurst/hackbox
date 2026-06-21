@@ -9,11 +9,9 @@ export interface RelayFetcher {
   fetch(input: Request | string, init?: RequestInit): Promise<Response>;
 }
 
-// Cloudflare bindings declared in wrangler.toml, surfaced on the H3 event by the
-// Nitro `cloudflare_module` preset (and by `nitro-cloudflare-dev` in dev).
 export interface AdminEnv {
-  RELAY: RelayFetcher; // service binding to hackbox-relay
-  DB: D1Database; // permanent room history (shared with the relay)
+  RELAY: RelayFetcher;
+  DB: D1Database;
 }
 
 export function getEnv(event: H3Event): AdminEnv {

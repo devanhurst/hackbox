@@ -1,5 +1,3 @@
-// Delete a room entirely: destroy the live Room DO (freeing its code) and remove
-// its history rows (the room + its members) from D1.
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
   const body = await readBody<Record<string, unknown>>(event).catch(

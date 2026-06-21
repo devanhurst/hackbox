@@ -1,7 +1,5 @@
 import { type MemberRow, type RoomRow, parseMetadata } from "../utils/rooms";
 
-// Revive a room in place: re-create the live Room DO at its code, reusing the
-// same history row id and seeding its members back from D1. No new row.
 export default defineEventHandler(async (event) => {
   const env = getEnv(event);
   const body = await readBody<Record<string, unknown>>(event).catch(

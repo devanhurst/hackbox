@@ -11,9 +11,8 @@ const probe = async (url: string): Promise<FindRoomResponse | null> => {
   }
 };
 
-// Find a room across both backends: the new Cloudflare relay first, then the
-// legacy socket.io server (for rooms hosted by not-yet-updated Unity games).
-// `legacy` tells the player view which transport to connect with.
+// Probe the new relay first, then fall back to the legacy server (for rooms
+// hosted by not-yet-updated Unity games).
 export const getRoom = async ({
   roomCode,
   userId,

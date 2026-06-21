@@ -67,10 +67,8 @@ const props = {
   },
 };
 
-// The host's style object is applied inline (any standard CSS). `hover` is the
-// one key that can't be an inline property — it's applied via the scoped
+// `hover` can't be an inline property — it's applied via the scoped
 // :hover/selected rules below, which need !important to beat the inline base.
-// applyLegacyAlign translates the deprecated `align` key onto standard CSS.
 const baseStyle = applyLegacyAlign(props.style);
 delete baseStyle.hover;
 const hoverColor = props.style.hover?.color ?? props.style.color;

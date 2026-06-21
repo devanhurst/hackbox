@@ -6,8 +6,6 @@ useHead({ title: "hackbox admin" });
 const actions = useRoomActions();
 const apiUrl = useApi();
 
-// Server-side filters. `statusFilter` and `codeQuery` feed the fetch query so
-// the server narrows the result set; useFetch refetches whenever either changes.
 const statusFilter = ref<"active" | "ended" | "all">("active");
 const statusItems = [
   { label: "Active", value: "active" },
@@ -33,7 +31,6 @@ const { data, refresh, status } = await useFetch<RoomsResponse>(apiUrl("rooms"),
 const rooms = computed(() => data.value?.rooms ?? []);
 const loading = computed(() => status.value === "pending");
 
-// Detail modal
 const detailOpen = ref(false);
 const detailId = ref<string | null>(null);
 function openRoom(id: string) {
@@ -41,7 +38,6 @@ function openRoom(id: string) {
   detailOpen.value = true;
 }
 
-// Row-level revive (non-destructive) + delete (confirmed)
 async function reviveRoom(id: string) {
   if (await actions.reviveRoom(id)) refresh();
 }
@@ -59,7 +55,6 @@ async function confirmDelete() {
   }
 }
 
-// Auto-refresh every 5s, toggleable.
 const auto = ref(true);
 let timer: ReturnType<typeof setInterval> | null = null;
 function syncTimer() {
@@ -118,7 +113,6 @@ onBeforeUnmount(() => {
 
     <RoomDetailModal v-model:open="detailOpen" :room-id="detailId" @changed="refresh" />
 
-    <!-- Delete confirmation for row-level deletes -->
     <UModal
       :open="!!pendingDelete"
       title="Delete room"
