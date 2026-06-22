@@ -221,6 +221,52 @@ Each Worker dir has `npm run type-check` (`tsc --noEmit`, or `nuxt typecheck` /
 a build for admin/client/docs). Deploys also run automatically via **Workers
 Builds** on pushes that touch each Worker's root dir.
 
+### Tests
+
+Every project has a Vitest suite (`cd <dir> && npm test`, or `npm run test:watch`).
+The two Workers (`relay/`, `api/`) run via **`@cloudflare/vitest-pool-workers`** —
+tests execute *inside* `workerd` (config: each Worker's `vitest.config.ts`);
+`client/` runs in **jsdom** with `@vue/test-utils`; `admin/` runs in plain
+**node** (its server utils are pure functions over mocked `db`/`env`).
+
+- **`relay/`** — bindings are the real runtime objects (the `Room` Durable Object
+  + the D1 `DB`, wired from `wrangler.toml`; storage is isolated + rolled back per
+  test). Covers the pure state helpers (`relay/test/roomState.test.ts`) and the
+  **wire-protocol contract** end-to-end over a real WebSocket against the `Room`
+  DO (`relay/test/protocol.test.ts`: handshake rejection + terminal close codes,
+  the `state.host` roster, full-replacement `member.update`, the replay cache,
+  one-connection-per-user eviction). Since the protocol is a hard public contract
+  with third-party hosts, **add a protocol test when you touch routing or the
+  envelope shape.** Gotcha: isolated storage rolls back DO *storage* between
+  tests, but the in-memory `Room` singleton keeps its cached `settings`, so the
+  protocol tests use a fresh room code per test.
+- **`api/`** — the only binding is the `RELAY` service binding; tests inject a
+  mock relay via `app.request(..., env)` rather than a live relay Worker (the
+  config stubs `RELAY` so `workerd` starts). Covers `generateRoomCode` +
+  `RelayClient` (`api/test/relay.test.ts`) and the routes
+  (`api/test/routes.test.ts`: the 8-attempt code-allocation retry loop, the 503
+  give-up, and closed-room visibility rules).
+- **`client/`** — the SDK envelope contract is the priority: `hackboxSocket.ts`
+  is tested with `partysocket` mocked (`client/test/hackboxSocket.test.ts`:
+  `emit`/`on` ⇄ `{ type, payload }`, pong/garbage filtering, fatal-close ≥4000 →
+  terminal `disconnect` + no reconnect, the 25s keepalive). Also the pure
+  state/prop helpers (`helpers.test.ts`, `stateHelpers.test.ts`) and the
+  component→socket emit contract (`ButtonComponent.test.ts` — a press emits a
+  `msg` envelope). Tests live in `client/test/` (a sibling of `src/`), so
+  `vue-tsc` type-check doesn't include them.
+
+- **`admin/`** — the D1/relay helpers in `server/utils/rooms.ts`
+  (`admin/test/rooms.test.ts`): the **`fetchMembersByRoom` chunking** under the
+  90-bound-variable D1 cap (the documented correctness risk), the row/metadata
+  mappers, `fetchMessageHistory` DESC→ascending ordering + payload parsing, and
+  the relay-overlay presence merge (`overlayPresence` / `fetchLiveMessages`) with
+  its unreachable-relay fallbacks. Plain functions over a mock `db`/`env`, so no
+  Nuxt runtime is needed — but `npm test` does need `.nuxt/tsconfig` (from the
+  `postinstall` `nuxt prepare`) for the transform to resolve types.
+
+`.github/workflows/ci.yml` runs `fmt:check` + each project's type-check and tests
+on every push/PR.
+
 ### D1 schema
 
 ```bash
