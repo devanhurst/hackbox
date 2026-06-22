@@ -8,6 +8,8 @@
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "type-check": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
@@ -19,6 +21,7 @@
     "@cloudflare/workers-types": "^4.20260621.1",
     "nitro-cloudflare-dev": "^0.2.2",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
     "wrangler": "^4.103.0"
   }
 }
