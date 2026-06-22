@@ -3,7 +3,7 @@ import type { TableColumn } from "@nuxt/ui";
 import type { AdminRoom } from "~/types";
 
 defineProps<{ rooms: AdminRoom[]; loading?: boolean }>();
-const emit = defineEmits<{ open: [string]; revive: [string]; remove: [AdminRoom] }>();
+const emit = defineEmits<{ revive: [string]; remove: [AdminRoom] }>();
 
 const columns: TableColumn<AdminRoom>[] = [
   { accessorKey: "code", header: "Code" },
@@ -25,14 +25,12 @@ const columns: TableColumn<AdminRoom>[] = [
     class="flex-1"
   >
     <template #code-cell="{ row }">
-      <UButton
-        variant="link"
-        color="primary"
-        class="font-bold tracking-wider text-base p-0"
-        @click="emit('open', row.original.id)"
+      <ULink
+        :to="`/rooms/${row.original.id}`"
+        class="font-bold tracking-wider text-base text-primary hover:underline"
       >
         {{ row.original.code }}
-      </UButton>
+      </ULink>
     </template>
 
     <template #status-cell="{ row }">

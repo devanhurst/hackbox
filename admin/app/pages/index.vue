@@ -5,17 +5,26 @@ useHead({ title: "hackbox admin" });
 
 const actions = useRoomActions();
 const apiUrl = useApi();
+const route = useRoute();
+const router = useRouter();
 
-const statusFilter = ref<"active" | "ended" | "all">("active");
+// Filters live in the URL query so navigating into a room detail page and back
+// (browser back) restores the same view.
+type StatusFilter = "active" | "ended" | "all";
 const statusItems = [
   { label: "Active", value: "active" },
   { label: "Ended", value: "ended" },
   { label: "All", value: "all" },
 ];
+const statusFilter = ref<StatusFilter>(
+  (["active", "ended", "all"] as const).includes(route.query.status as StatusFilter)
+    ? (route.query.status as StatusFilter)
+    : "active",
+);
 // `codeInput` is bound to the search box; `codeQuery` is the debounced value sent
 // to the server so we don't refetch on every keystroke.
-const codeInput = ref("");
-const codeQuery = ref("");
+const codeInput = ref(typeof route.query.code === "string" ? route.query.code : "");
+const codeQuery = ref(codeInput.value.trim());
 let codeDebounce: ReturnType<typeof setTimeout> | null = null;
 watch(codeInput, (v) => {
   if (codeDebounce) clearTimeout(codeDebounce);
@@ -24,19 +33,22 @@ watch(codeInput, (v) => {
   }, 300);
 });
 
+// Mirror the active filters into the URL query (without adding history entries).
+watch([statusFilter, codeQuery], ([status, code]) => {
+  router.replace({
+    query: {
+      ...(status === "active" ? {} : { status }),
+      ...(code ? { code } : {}),
+    },
+  });
+});
+
 const { data, refresh, status } = await useFetch<RoomsResponse>(apiUrl("rooms"), {
   query: { status: statusFilter, code: codeQuery },
   server: false,
 });
 const rooms = computed(() => data.value?.rooms ?? []);
 const loading = computed(() => status.value === "pending");
-
-const detailOpen = ref(false);
-const detailId = ref<string | null>(null);
-function openRoom(id: string) {
-  detailId.value = id;
-  detailOpen.value = true;
-}
 
 async function reviveRoom(id: string) {
   if (await actions.reviveRoom(id)) refresh();
@@ -71,28 +83,33 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen">
-    <header class="bg-primary px-5 py-3 text-lg font-extrabold text-white">hackbox admin</header>
+    <header
+      class="sticky top-0 z-10 bg-primary px-4 py-3 text-lg font-extrabold text-white sm:px-5"
+    >
+      hackbox admin
+    </header>
 
-    <main class="mx-auto max-w-6xl space-y-3 p-5">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+    <main class="mx-auto max-w-6xl space-y-3 p-4 sm:p-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-primary-400">
           Rooms ({{ rooms.length }})
         </h2>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
           <UInput
             v-model="codeInput"
             icon="i-lucide-search"
             placeholder="Search code"
-            class="w-40"
+            class="min-w-0 flex-1 sm:w-40 sm:flex-none"
             :loading="loading && !!codeInput"
           />
-          <USelect v-model="statusFilter" :items="statusItems" class="w-32" />
+          <USelect v-model="statusFilter" :items="statusItems" class="w-28 sm:w-32" />
           <USwitch v-model="auto" label="auto-refresh (5s)" />
           <UButton
             color="neutral"
             variant="subtle"
             icon="i-lucide-refresh-cw"
             :loading="loading"
+            class="ml-auto sm:ml-0"
             @click="refresh()"
           >
             Refresh
@@ -104,14 +121,11 @@ onBeforeUnmount(() => {
         <RoomsTable
           :rooms="rooms"
           :loading="loading"
-          @open="openRoom"
           @revive="reviveRoom"
           @remove="pendingDelete = $event"
         />
       </UCard>
     </main>
-
-    <RoomDetailModal v-model:open="detailOpen" :room-id="detailId" @changed="refresh" />
 
     <UModal
       :open="!!pendingDelete"
