@@ -111,9 +111,28 @@ export interface AdminMessage {
   type: "msg" | "change" | "state.member";
   from: string | null;
   to: string | null;
+  // The display names for `from`/`to`, resolved from the room's roster so the
+  // admin log reads in chosen names rather than opaque user ids. `null` when the
+  // id has no roster entry (e.g. a join row that never reached D1).
+  fromName?: string | null;
+  toName?: string | null;
   event: string | null;
   payload: unknown;
   timestamp: number;
+}
+
+// Attach display names to a batch of messages, in place. Resolving here (where
+// the room's members are already loaded) keeps the log self-sufficient instead
+// of relying on a separately-fetched, possibly-stale client roster.
+export function enrichMessageNames(
+  messages: AdminMessage[],
+  nameById: Map<string, string>,
+): AdminMessage[] {
+  for (const m of messages) {
+    m.fromName = m.from ? (nameById.get(m.from) ?? null) : null;
+    m.toName = m.to ? (nameById.get(m.to) ?? null) : null;
+  }
+  return messages;
 }
 
 interface MessageRow {

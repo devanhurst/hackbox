@@ -41,6 +41,8 @@ export interface AdminMessage {
   type: "msg" | "change" | "state.member";
   from: string | null;
   to: string | null;
+  fromName?: string | null;
+  toName?: string | null;
   event: string | null;
   payload: unknown;
   timestamp: number;

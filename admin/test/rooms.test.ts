@@ -2,6 +2,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { describe, expect, it } from "vitest";
 import type { AdminEnv } from "../server/utils/env";
 import {
+  type AdminMessage,
+  enrichMessageNames,
   fetchLiveMessages,
   fetchMembers,
   fetchMembersByRoom,
@@ -192,6 +194,42 @@ describe("fetchMessageHistory", () => {
     expect(messages[2]!.payload).toEqual({ ui: 1 }); // JSON parsed
     expect(messages[1]!.payload).toBe("not json"); // non-JSON falls back to the raw string
     expect(messages[0]!.payload).toBeNull(); // null stays null
+  });
+});
+
+describe("enrichMessageNames", () => {
+  const msg = (over: Partial<AdminMessage>): AdminMessage => ({
+    seq: 1,
+    direction: "member_to_host",
+    type: "msg",
+    from: null,
+    to: null,
+    event: null,
+    payload: null,
+    timestamp: 0,
+    ...over,
+  });
+
+  it("resolves from/to ids to roster display names", () => {
+    const nameById = new Map([
+      ["u1", "ALICE"],
+      ["u2", "BOB"],
+    ]);
+    const messages = enrichMessageNames(
+      [
+        msg({ direction: "member_to_host", from: "u1", to: null }),
+        msg({ direction: "host_to_member", from: null, to: "u2" }),
+      ],
+      nameById,
+    );
+
+    expect(messages[0]).toMatchObject({ fromName: "ALICE", toName: null });
+    expect(messages[1]).toMatchObject({ fromName: null, toName: "BOB" });
+  });
+
+  it("leaves the name null for ids absent from the roster", () => {
+    const [m] = enrichMessageNames([msg({ from: "ghost", to: null })], new Map());
+    expect(m!.fromName).toBeNull();
   });
 });
 

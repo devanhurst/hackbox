@@ -28,6 +28,13 @@ function who(id: string | null): string {
   return nameById.value.get(id) ?? id;
 }
 
+// The party whose chosen name labels the row: the sender for player→host frames,
+// the recipient for host→player. Prefer the server-resolved name, then the live
+// roster, and only fall back to the raw id when neither knows the member.
+function label(m: AdminMessage): string {
+  return m.direction === "member_to_host" ? (m.fromName ?? who(m.from)) : (m.toName ?? who(m.to));
+}
+
 const canLoadOlder = computed(
   () => !noMoreHistory.value && (messages.value.length === 0 || messages.value[0]!.seq > 0),
 );
@@ -209,16 +216,14 @@ const dirMeta = {
             @click="toggle(m.seq)"
           >
             <div class="flex items-center gap-2">
-              <span class="text-muted tabular-nums">{{ fmtTime(m.timestamp) }}</span>
+              <span class="text-muted tabular-nums">{{ fmtTimestamp(m.timestamp) }}</span>
               <UIcon
                 :name="dirMeta[m.direction].icon"
                 :class="dirMeta[m.direction].color"
                 class="shrink-0"
               />
               <UBadge color="neutral" variant="subtle" size="sm">{{ m.type }}</UBadge>
-              <span class="text-default">
-                {{ m.direction === "member_to_host" ? who(m.from) : who(m.to) }}
-              </span>
+              <span class="text-default">{{ label(m) }}</span>
               <span v-if="m.event" class="text-primary-300">· {{ m.event }}</span>
               <span class="text-muted truncate">{{ preview(m) }}</span>
             </div>

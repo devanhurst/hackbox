@@ -4,8 +4,20 @@ export function fmt(ts: number | null | undefined): string {
   return ts ? new Date(ts).toLocaleString() : "—";
 }
 
-export function fmtTime(ts: number | null | undefined): string {
-  return ts ? new Date(ts).toLocaleTimeString() : "—";
+// The activity log wants every distinguishing digit: the full date plus a
+// millisecond-precise time, so closely-spaced frames stay orderable by eye.
+export function fmtTimestamp(ts: number | null | undefined): string {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+    hour12: false,
+  });
 }
 
 export function statusInfo(r: AdminRoom): {
