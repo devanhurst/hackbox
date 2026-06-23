@@ -241,3 +241,45 @@ export async function overlayPresence(
   }
   return { live: false, hasHost: false, expiresAt: null };
 }
+
+export interface LivePresence {
+  live: boolean;
+  hasHost: boolean;
+  expiresAt: number | null;
+  onlineCount: number;
+  members: AdminMember[];
+}
+
+// The live presence overlay straight from the relay DO's `adminStatus()` — no
+// D1 roster query. Polled frequently by the room page; `overlayPresence` above
+// is the one-shot merge used by the full `room/:id` load. Always resolves: an
+// unreachable relay or non-live room yields an empty, not-live overlay.
+export async function fetchLivePresence(env: AdminEnv, code: string): Promise<LivePresence> {
+  try {
+    const res = await env.RELAY.fetch(new Request(`https://relay/admin/room/${code}`));
+    if (res.ok) {
+      const p = (await res.json()) as {
+        exists?: boolean;
+        hasHost?: boolean;
+        expiresAt?: number | null;
+        members?: { userId: string; userName: string; online: boolean; twitch: string | null }[];
+      };
+      const members: AdminMember[] = (p.members ?? []).map((m) => ({
+        userId: m.userId,
+        userName: m.userName,
+        twitch: m.twitch ?? null,
+        online: Boolean(m.online),
+      }));
+      return {
+        live: p.exists !== false,
+        hasHost: Boolean(p.hasHost),
+        expiresAt: p.expiresAt ?? null,
+        onlineCount: members.filter((m) => m.online).length,
+        members,
+      };
+    }
+  } catch {
+    /* fall through */
+  }
+  return { live: false, hasHost: false, expiresAt: null, onlineCount: 0, members: [] };
+}

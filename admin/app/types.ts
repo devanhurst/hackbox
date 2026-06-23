@@ -5,6 +5,14 @@ export interface AdminMember {
   online: boolean;
 }
 
+export interface LivePresence {
+  live: boolean;
+  hasHost: boolean;
+  expiresAt: number | null;
+  onlineCount: number;
+  members: AdminMember[];
+}
+
 export interface AdminRoom {
   id: string;
   code: string;

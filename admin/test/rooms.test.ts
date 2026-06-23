@@ -5,6 +5,7 @@ import {
   type AdminMessage,
   enrichMessageNames,
   fetchLiveMessages,
+  fetchLivePresence,
   fetchMembers,
   fetchMembersByRoom,
   fetchMessageHistory,
@@ -309,5 +310,62 @@ describe("overlayPresence", () => {
       hasHost: false,
       expiresAt: null,
     });
+  });
+});
+
+describe("fetchLivePresence", () => {
+  it("maps the relay status to the live-overlay shape", async () => {
+    const env = mockEnv(() =>
+      Response.json({
+        exists: true,
+        hasHost: true,
+        expiresAt: 999,
+        members: [
+          { userId: "u1", userName: "ALICE", online: true, twitch: null },
+          { userId: "u2", userName: "BOB", online: false, twitch: "tw" },
+        ],
+      }),
+    );
+
+    const p = await fetchLivePresence(env, "BCDF");
+
+    expect(p).toEqual({
+      live: true,
+      hasHost: true,
+      expiresAt: 999,
+      onlineCount: 1,
+      members: [
+        { userId: "u1", userName: "ALICE", twitch: null, online: true },
+        { userId: "u2", userName: "BOB", twitch: "tw", online: false },
+      ],
+    });
+  });
+
+  it("reports not-live when the relay says the room no longer exists", async () => {
+    const env = mockEnv(() => Response.json({ exists: false }));
+    expect(await fetchLivePresence(env, "BCDF")).toEqual({
+      live: false,
+      hasHost: false,
+      expiresAt: null,
+      onlineCount: 0,
+      members: [],
+    });
+  });
+
+  it("falls back to an empty not-live overlay on a non-ok or thrown relay response", async () => {
+    expect(
+      await fetchLivePresence(
+        mockEnv(() => new Response("", { status: 502 })),
+        "BCDF",
+      ),
+    ).toEqual({ live: false, hasHost: false, expiresAt: null, onlineCount: 0, members: [] });
+    expect(
+      await fetchLivePresence(
+        mockEnv(() => {
+          throw new Error("down");
+        }),
+        "BCDF",
+      ),
+    ).toEqual({ live: false, hasHost: false, expiresAt: null, onlineCount: 0, members: [] });
   });
 });
