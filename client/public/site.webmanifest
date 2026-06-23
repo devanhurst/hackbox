@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "short_name": "",
+  "name": "Hackbox — Real-time multiplayer platform",
+  "short_name": "Hackbox",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
