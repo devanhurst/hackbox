@@ -1,5 +1,7 @@
 # hackbox
 
+[![CI](https://github.com/devanhurst/hackbox/actions/workflows/ci.yml/badge.svg)](https://github.com/devanhurst/hackbox/actions/workflows/ci.yml)
+
 A real-time multiplayer game platform (think Jackbox): a host drives UI onto
 players' phones and receives their interactions, relayed in real time. Hosts
 integrate over a small `{ type, payload }` JSON-over-WebSocket protocol — any
