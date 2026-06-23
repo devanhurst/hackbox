@@ -26,6 +26,28 @@ export default defineNuxtConfig({
   ogImage: {
     enabled: false,
   },
+  // @nuxt/fonts (pulled in by @nuxt/ui) resolves every CSS `font-family` against
+  // remote font providers AT BUILD TIME — it fetches each provider's metadata
+  // index (Google Fonts, Google Icons, Bunny, Fontshare, Fontsource) during the
+  // Vite client transform, then downloads the matching woff2 files. Those fetches
+  // (via unifont/ofetch) have NO timeout, so on Cloudflare Workers Builds — whose
+  // egress to those hosts hangs rather than rejecting — the transform blocks
+  // forever and the build hits the 20-minute CI timeout ("transforming…" never
+  // completes). The docs are a static-assets Worker with no need for self-hosted
+  // webfonts, so disable every remote provider (leaving only the bundled `local`
+  // one). This makes the build hermetic; typography falls back to the system
+  // stack. Same rationale as disabling og-image above.
+  fonts: {
+    providers: {
+      google: false,
+      googleicons: false,
+      bunny: false,
+      fontshare: false,
+      fontsource: false,
+      adobe: false,
+      npm: false,
+    },
+  },
   nitro: {
     // Force the pure-static preset. On Cloudflare Workers Builds, Nitro otherwise
     // auto-detects the CF environment and switches to the `cloudflare-module`
