@@ -48,6 +48,17 @@ export default defineNuxtConfig({
       npm: false,
     },
   },
+  // Same hazard as fonts, via @nuxt/icon: Docus configures `provider: 'iconify'`,
+  // so to render an icon during prerender the server fetches it from the Iconify
+  // API (https://api.iconify.design). That fetch has no timeout, so on Cloudflare
+  // Workers Builds — where egress to the API hangs rather than rejecting — prerender
+  // blocks until the CI timeout (this is the SECOND hang, reached once the font one
+  // above is fixed). Switch the API fallback to client-only: the server/build no
+  // longer calls the API (so the build is hermetic and can't hang), while the
+  // browser still resolves icons from the CDN at runtime, so icons render as before.
+  icon: {
+    fallbackToApi: "client-only",
+  },
   nitro: {
     // Force the pure-static preset. On Cloudflare Workers Builds, Nitro otherwise
     // auto-detects the CF environment and switches to the `cloudflare-module`
