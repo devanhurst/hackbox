@@ -20,11 +20,19 @@ export interface Props {
 
 export interface State {
   selected: boolean;
+  // A brief, transient "just pressed" flash, independent of the latched
+  // `selected` state, so every trigger gets visible feedback.
+  pressed: boolean;
 }
 
 const state: State = reactive({
   selected: false,
+  pressed: false,
 });
+
+// How long the pressed flash stays on screen.
+const PRESS_FLASH_MS = 150;
+let pressTimer: ReturnType<typeof setTimeout> | undefined;
 
 const defaultProps = {
   style: {
@@ -86,7 +94,19 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 };
 
+// Flash the pressed look briefly. Driven from handleSelect (not the DOM :active
+// pseudo-class) so keyboard triggers — which synthesize a click and never set
+// :active — get the same feedback as taps.
+const flashPressed = () => {
+  state.pressed = true;
+  if (pressTimer) clearTimeout(pressTimer);
+  pressTimer = setTimeout(() => {
+    state.pressed = false;
+  }, PRESS_FLASH_MS);
+};
+
 const handleSelect = () => {
+  flashPressed();
   if (props.persistent) {
     // Stay enabled so the player can press again and again.
     props.onSelect();
@@ -102,6 +122,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
+  if (pressTimer) clearTimeout(pressTimer);
 });
 </script>
 
@@ -111,7 +132,7 @@ onUnmounted(() => {
     @click="handleSelect"
     :style="baseStyle"
     :disabled="state.selected"
-    :class="`choice ${state.selected ? 'choice--selected' : ''}`"
+    :class="['choice', { 'choice--selected': state.selected, 'choice--pressed': state.pressed }]"
   >
     <span class="choice-label" v-html="label"></span>
   </button>
@@ -122,6 +143,26 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  transition:
+    transform 0.08s ease,
+    filter 0.08s ease;
+}
+
+/* Transient feedback on every trigger (tap or keypress), separate from the
+   latched selected state so it shows even on persistent, never-disabled buttons. */
+.choice--pressed {
+  transform: scale(0.95);
+  filter: brightness(0.85);
+}
+
+/* Respect reduced-motion: drop the scale, keep the brightness cue. */
+@media (prefers-reduced-motion: reduce) {
+  .choice {
+    transition: filter 0.08s ease;
+  }
+  .choice--pressed {
+    transform: none;
+  }
 }
 
 /* Hover/selected colors override the inline base style, so they need !important. */
