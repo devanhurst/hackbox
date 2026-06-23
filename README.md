@@ -24,3 +24,7 @@ Runs entirely on Cloudflare (Durable Objects + D1 + Workers).
 [hackbox.ca/docs](https://hackbox.ca/docs) — protocol, components, and a build-a-game tutorial.
 
 For architecture and local development, see [CLAUDE.md](./CLAUDE.md).
+
+## License
+
+[MIT](./LICENSE)
