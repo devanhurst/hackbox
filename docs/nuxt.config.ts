@@ -10,8 +10,16 @@ export default defineNuxtConfig({
   app: {
     baseURL: "/docs/",
   },
+  // Site-level SEO metadata. Unlike the player client (kept deliberately bare,
+  // jackbox.tv-style), the docs ARE meant to be discoverable, so give crawlers
+  // a clear description + canonical host. nuxt-seo (bundled by Docus) uses these
+  // as the defaults for <meta description>, canonical URLs, and OG tags on every
+  // docs page; per-page frontmatter `seo:` blocks override them.
   site: {
     name: "Hackbox",
+    url: "https://hackbox.ca",
+    description:
+      "Hackbox is a real-time multiplayer platform and developer SDK for building interactive, host-driven experiences where players use their mobile devices as live controllers.",
   },
   // The site is served under a base URL (/docs/) rather than a domain root, so
   // skip robots.txt generation (Docus's @nuxt/robots refuses to emit one with a
