@@ -49,15 +49,24 @@ export default defineNuxtConfig({
     },
   },
   // Same hazard as fonts, via @nuxt/icon: Docus configures `provider: 'iconify'`,
-  // so to render an icon during prerender the server fetches it from the Iconify
-  // API (https://api.iconify.design). That fetch has no timeout, so on Cloudflare
+  // under which icon components resolve through @iconify/vue's own API client and
+  // fetch each icon from the Iconify API (https://api.iconify.design) during
+  // prerender. That fetch has no timeout (and bypasses any proxy), so on Cloudflare
   // Workers Builds — where egress to the API hangs rather than rejecting — prerender
-  // blocks until the CI timeout (this is the SECOND hang, reached once the font one
-  // above is fixed). Switch the API fallback to client-only: the server/build no
-  // longer calls the API (so the build is hermetic and can't hang), while the
-  // browser still resolves icons from the CDN at runtime, so icons render as before.
+  // blocks until the CI timeout. (@nuxt/icon's `fallbackToApi` does NOT gate this
+  // path; it only applies to the `server` provider.)
+  //
+  // Switch to the `server` provider and bundle the icon sets we use (all installed
+  // locally as @iconify-json/* packages) into the server bundle. Prerender then
+  // resolves every icon from disk and @nuxt/ui inlines its SVG into the page CSS as
+  // a data-URI — so the build makes zero network calls (hermetic, can't hang) and
+  // the static output renders icons offline with no runtime API/CDN dependency.
   icon: {
-    fallbackToApi: "client-only",
+    provider: "server",
+    serverBundle: {
+      collections: ["lucide", "simple-icons", "heroicons", "carbon", "vscode-icons"],
+    },
+    fallbackToApi: false,
   },
   nitro: {
     // Force the pure-static preset. On Cloudflare Workers Builds, Nitro otherwise
