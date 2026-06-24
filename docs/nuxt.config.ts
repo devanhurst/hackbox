@@ -26,48 +26,6 @@ export default defineNuxtConfig({
   ogImage: {
     enabled: false,
   },
-  // @nuxt/fonts (pulled in by @nuxt/ui) resolves every CSS `font-family` against
-  // remote font providers AT BUILD TIME — it fetches each provider's metadata
-  // index (Google Fonts, Google Icons, Bunny, Fontshare, Fontsource) during the
-  // Vite client transform, then downloads the matching woff2 files. Those fetches
-  // (via unifont/ofetch) have NO timeout, so on Cloudflare Workers Builds — whose
-  // egress to those hosts hangs rather than rejecting — the transform blocks
-  // forever and the build hits the 20-minute CI timeout ("transforming…" never
-  // completes). The docs are a static-assets Worker with no need for self-hosted
-  // webfonts, so disable every remote provider (leaving only the bundled `local`
-  // one). This makes the build hermetic; typography falls back to the system
-  // stack. Same rationale as disabling og-image above.
-  fonts: {
-    providers: {
-      google: false,
-      googleicons: false,
-      bunny: false,
-      fontshare: false,
-      fontsource: false,
-      adobe: false,
-      npm: false,
-    },
-  },
-  // Same hazard as fonts, via @nuxt/icon: Docus configures `provider: 'iconify'`,
-  // under which icon components resolve through @iconify/vue's own API client and
-  // fetch each icon from the Iconify API (https://api.iconify.design) during
-  // prerender. That fetch has no timeout (and bypasses any proxy), so on Cloudflare
-  // Workers Builds — where egress to the API hangs rather than rejecting — prerender
-  // blocks until the CI timeout. (@nuxt/icon's `fallbackToApi` does NOT gate this
-  // path; it only applies to the `server` provider.)
-  //
-  // Switch to the `server` provider and bundle the icon sets we use (all installed
-  // locally as @iconify-json/* packages) into the server bundle. Prerender then
-  // resolves every icon from disk and @nuxt/ui inlines its SVG into the page CSS as
-  // a data-URI — so the build makes zero network calls (hermetic, can't hang) and
-  // the static output renders icons offline with no runtime API/CDN dependency.
-  icon: {
-    provider: "server",
-    serverBundle: {
-      collections: ["lucide", "simple-icons", "heroicons", "carbon", "vscode-icons"],
-    },
-    fallbackToApi: false,
-  },
   nitro: {
     // Force the pure-static preset. On Cloudflare Workers Builds, Nitro otherwise
     // auto-detects the CF environment and switches to the `cloudflare-module`
