@@ -162,9 +162,10 @@ describe("twitch guard", () => {
   });
 
   it("rejects a token that can't be verified with a distinct 'could not be verified' message", async () => {
-    // No TWITCH_CLIENT_ID is configured in the test env, so a supplied token
-    // can't be validated — the same shape as a wrong-app / expired token in prod.
-    // The player *did* send a token, so they must not be told to "log in".
+    // TWITCH_CLIENT_ID is blanked in the test env (see vitest.config.ts), so a
+    // supplied token can't be validated — the same shape as a wrong-app / expired
+    // token in prod. The player *did* send a token, so they must not be told to
+    // "log in".
     await initRoom({ hostId: HOST_ID, twitchRequired: true });
     const member = await connect(`?userId=p1&userName=Alice${meta({ twitchAccessToken: "tok" })}`);
 
