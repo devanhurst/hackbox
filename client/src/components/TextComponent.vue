@@ -36,8 +36,4 @@ const style = computed(() => applyLegacyAlign(props.style));
   display: flex;
   justify-content: center;
 }
-
-.textbox :deep(p) {
-  margin: 0;
-}
 </style>
