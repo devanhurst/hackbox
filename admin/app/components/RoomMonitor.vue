@@ -185,7 +185,11 @@ const dirMeta = {
           color="neutral"
           variant="ghost"
           :icon="paused ? 'i-lucide-play' : 'i-lucide-pause'"
-          @click="paused = !paused"
+          @click="
+            () => {
+              paused = !paused;
+            }
+          "
         />
       </div>
     </div>

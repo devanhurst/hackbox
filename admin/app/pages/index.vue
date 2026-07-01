@@ -145,7 +145,16 @@ onBeforeUnmount(() => {
       </template>
       <template #footer>
         <div class="ml-auto flex gap-2">
-          <UButton color="neutral" variant="ghost" @click="pendingDelete = null">Cancel</UButton>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="
+              () => {
+                pendingDelete = null;
+              }
+            "
+            >Cancel</UButton
+          >
           <UButton color="error" :loading="deleting" @click="confirmDelete">Delete</UButton>
         </div>
       </template>
