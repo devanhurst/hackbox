@@ -51,8 +51,16 @@ database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"
 [triggers]
 crons = ["0 4 * * *"]
 
-# TWITCH_CLIENT_ID is a secret, set via `wrangler secret put TWITCH_CLIENT_ID`
-# (not committed here). The DO reads it from `env` to authenticate members.
+# TWITCH_CLIENT_ID is the relay's Twitch app id, used as the `Client-Id` header
+# when validating members' OAuth tokens. It is a *public* identifier (already
+# exposed in the browser), so it lives here as a plaintext var rather than a
+# secret. Declaring it in config is deliberate: `wrangler deploy` makes the
+# Worker's vars exactly match this file (keep_vars defaults to false), so a var
+# set only in the dashboard would be wiped on the next deploy — which is how it
+# previously became unset. It must match the client's Twitch app
+# (VITE_TWITCH_CLIENT_ID) or token validation 401s.
+[vars]
+TWITCH_CLIENT_ID = "qlfz8nlzzkq20jhl1xuawhza5xa3fm"
 
 [observability]
 enabled = true

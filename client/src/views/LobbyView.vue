@@ -33,10 +33,15 @@ const updateTwitchData = async (): Promise<void> => {
   const token = getTwitchAccessToken();
   if (!token) return;
 
+  if (!config.twitchClientId) return;
+
   const response = await fetch(`https://api.twitch.tv/helix/users`, {
     headers: {
       Authorization: "Bearer " + token,
-      "Client-Id": "qlfz8nlzzkq20jhl1xuawhza5xa3fm",
+      // Must be the same Twitch app the OAuth token was minted under (the authorize
+      // link below uses `config.twitchClientId`) *and* the same one the relay
+      // validates against (its TWITCH_CLIENT_ID secret). Twitch 401s a mismatch.
+      "Client-Id": config.twitchClientId,
     },
   });
 
@@ -92,10 +97,20 @@ const canJoin = computed(() => {
   return state.room.exists;
 });
 
-const joinGame = () => {
-  if (state.room.twitchRequired && !getTwitchAccessToken()) {
-    alert("Please log in with Twitch before joining this room.");
-    return;
+const joinGame = async () => {
+  if (state.room.twitchRequired) {
+    // The relay validates the Twitch token server-side and rejects an expired,
+    // revoked, or wrong-app one. Mirror that here so we don't wave a player
+    // through only for the server to kick them: require a *validated* Twitch
+    // identity, (re)checking the stored token if we haven't confirmed it yet.
+    // updateTwitchData() clears the token when it's no longer valid.
+    if (!twitchData.value && getTwitchAccessToken()) {
+      await updateTwitchData();
+    }
+    if (!twitchData.value) {
+      alert("Please log in with Twitch before joining this room.");
+      return;
+    }
   }
 
   setRoomCode(state.roomCode as string);

@@ -91,6 +91,16 @@ storage). Responsibilities:
 - Room settings (closed / twitchRequired / persistent) and a **24h self-destruct
   alarm**.
 - Server-side **Twitch auth** (`relay/src/twitch.ts`, reads `env.TWITCH_CLIENT_ID`).
+  `TWITCH_CLIENT_ID` is a **public** identifier (the Twitch app id, also exposed
+  in the browser), so it lives as a plaintext **`[vars]` entry in
+  `relay/wrangler.toml`** — *not* a `wrangler secret` or a dashboard variable.
+  This is deliberate: `wrangler deploy` makes the Worker's vars exactly match
+  `wrangler.toml` (`keep_vars` defaults to `false`), so a value set only in the
+  dashboard gets wiped on the next deploy (which once silently broke every
+  `twitchRequired` room). Keep it in `[vars]` and never re-add it as a dashboard
+  var/secret. It must match the client's Twitch app (`VITE_TWITCH_CLIENT_ID`) or
+  token validation 401s. Tests blank it via `relay/vitest.config.ts` to stay
+  offline.
 - **D1 history writes** (best-effort): a `rooms` row on creation, `ended_at` on
   expiry, a `members` row on each user's first join.
 

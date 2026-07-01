@@ -276,6 +276,7 @@ export class Room extends Server<Env> {
       handshakeMetadata = {};
     }
 
+    const suppliedTwitchToken = Boolean(handshakeMetadata.twitchAccessToken);
     const metadata: MemberMetadata = {
       twitch: await authenticateWithTwitch(
         handshakeMetadata.twitchAccessToken,
@@ -291,7 +292,16 @@ export class Room extends Server<Env> {
     }
 
     if (settings.twitchRequired && !metadata.twitch) {
-      this.fail(connection, "Please log in with Twitch before joining this room.");
+      // Distinguish "never logged in" from "logged in but the token was rejected"
+      // (expired, revoked, or minted for a different Twitch app than the relay
+      // validates against). Telling a player who *did* log in to "log in" is the
+      // confusing failure this guard used to produce.
+      this.fail(
+        connection,
+        suppliedTwitchToken
+          ? "Your Twitch login could not be verified. Please reconnect Twitch and try again."
+          : "Please log in with Twitch before joining this room.",
+      );
       return;
     }
 

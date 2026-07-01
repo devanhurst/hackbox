@@ -148,6 +148,35 @@ describe("member join", () => {
   });
 });
 
+describe("twitch guard", () => {
+  const meta = (data: Record<string, unknown>) =>
+    `&metadata=${encodeURIComponent(JSON.stringify(data))}`;
+
+  it("rejects a twitchRequired room join that sends no token, telling the player to log in", async () => {
+    await initRoom({ hostId: HOST_ID, twitchRequired: true });
+    const member = await connect("?userId=p1&userName=Alice");
+
+    const err = await member.next("error");
+    expect(err.payload.message).toBe("Please log in with Twitch before joining this room.");
+    expect((await member.closed).code).toBeGreaterThanOrEqual(4000);
+  });
+
+  it("rejects a token that can't be verified with a distinct 'could not be verified' message", async () => {
+    // TWITCH_CLIENT_ID is blanked in the test env (see vitest.config.ts), so a
+    // supplied token can't be validated — the same shape as a wrong-app / expired
+    // token in prod. The player *did* send a token, so they must not be told to
+    // "log in".
+    await initRoom({ hostId: HOST_ID, twitchRequired: true });
+    const member = await connect(`?userId=p1&userName=Alice${meta({ twitchAccessToken: "tok" })}`);
+
+    const err = await member.next("error");
+    expect(err.payload.message).toBe(
+      "Your Twitch login could not be verified. Please reconnect Twitch and try again.",
+    );
+    expect((await member.closed).code).toBeGreaterThanOrEqual(4000);
+  });
+});
+
 describe("host -> member updates", () => {
   it("delivers a member.update as a full-replacement state.member", async () => {
     await initRoom();
