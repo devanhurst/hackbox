@@ -13,9 +13,9 @@ sync, D1 for durable history, and several Workers. There is no always-on server
 and (for the live path) no managed database.
 
 > **History:** Hackbox was migrated off a Node/Express/Socket.io + Postgres
-> service (on Render) onto Cloudflare. The legacy service still lives in
-> `server/` and is kept running only during the host-deprecation window — see
-> [Legacy server](#legacy-server-server--deprecated). New work goes in the
+> service (on Render, at `app.hackbox.ca`) onto Cloudflare. That legacy service
+> has since been **shut down** and its code removed from this repo — there is no
+> backwards-compatible fallback transport any more. All work goes in the
 > Cloudflare Workers below.
 
 ## Monorepo layout
@@ -28,7 +28,6 @@ and (for the live path) no managed database.
 | `admin/` | `hackbox-admin` | A Nuxt 3 admin dashboard (Access-protected) reading room/member history from D1 + live presence from the relay. |
 | `db/` | — | The Cloudflare **D1** schema (`schema.sql`) — permanent room/member history. |
 | `docs/` | — | The public docs site (Nuxt Content, hackbox.ca/docs). Source under `docs/content/`. |
-| `server/` | — | **Legacy** Node/Express/Socket.io + Postgres service. Deprecated. |
 
 ### Routing — apex path prefixes, not subdomains
 
@@ -132,8 +131,8 @@ internet (`api/src/relay.ts`: `RelayClient`, `generateRoomCode`).
 
 ### Client (`client/`) — the Vue player SPA
 
-Vue 3 + Composition API + TypeScript + Vite. Unchanged from the legacy player
-client except the transport. Key files:
+Vue 3 + Composition API + TypeScript + Vite. Unchanged from the pre-migration
+player client except the transport. Key files:
 
 - `src/lib/sockets/hackboxSocket.ts` — `createHackboxSocket(...)`, the
   `partysocket` wrapper that speaks the `{ type, payload }` envelope and exposes
@@ -141,11 +140,10 @@ client except the transport. Key files:
   fatal-close handling).
 - `src/lib/sockets/playerSocket.ts` — the reactive player connection, built on
   `createHackboxSocket`. Receives `state.member` and drives the UI.
-- `src/lib/sockets/legacySocket.ts` — a `socket.io-client` fallback. The client
-  probes the new relay first and falls back to the **legacy** server
-  (`app.hackbox.ca`) for rooms hosted by not-yet-updated Unity games.
-- `src/config/index.ts` — `apiUrl`, `relayHost`, `legacyServerUrl` (defaults to
-  the current origin in prod; `VITE_*` env vars override).
+- `src/lib/getRoom.ts` — the room existence probe against `GET /api/rooms/:code`
+  (the relay is the only backend; there is no fallback probe).
+- `src/config/index.ts` — `apiUrl`, `relayHost` (default to the current origin in
+  prod; `VITE_*` env vars override).
 - `src/views/PlayerView.vue` — the **dynamic component renderer**: reads
   `state.ui.main.components` and renders each by its `type` field.
 - `src/components/` + `src/components/index.ts` — the player UI components
@@ -186,14 +184,6 @@ variables per statement**, so chunk
 any `IN (...)` over a variable-length list (see `fetchMembersByRoom` in
 `admin/server/utils/rooms.ts`).
 
-### Legacy server (`server/`) — deprecated
-
-The original Node/Express/Socket.io + Postgres (Drizzle ORM) service. Kept
-running on Render **read-mostly** during the host-deprecation window so rooms
-hosted by not-yet-updated Unity games keep working (the client falls back to it
-via `legacySocket.ts`). **Don't build new features here** — it will be retired
-once Unity hosts have migrated.
-
 ## Development Commands
 
 ### Tooling
@@ -210,13 +200,13 @@ npm run fmt:check   # oxfmt --check
 
 ### Running services
 
-The root `npm run dev` runs **client (9001), docs (9002), and the LEGACY server
-(9000)** concurrently — it predates the migration and does **not** start the
-relay/api/admin Workers. Run those individually with `wrangler dev`:
+The root `npm run dev` runs **client (9001) and docs (9002)** concurrently — it
+does **not** start the relay/api/admin Workers. Run those individually with
+`wrangler dev`:
 
 ```bash
 # from the repo root
-npm run dev            # legacy server + client + docs (see caveat above)
+npm run dev            # client + docs (see caveat above)
 
 # Cloudflare Workers — run each in its own dir
 cd relay && npm run dev   # wrangler dev — Room DO (partyserver, :1999)

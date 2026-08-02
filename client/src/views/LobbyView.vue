@@ -7,7 +7,6 @@ import {
   getRoomCode,
   getUserName,
   setRoomCode,
-  setRoomLegacy,
   setUserName,
   getTwitchAccessToken,
   deleteTwitchAccessToken,
@@ -115,9 +114,6 @@ const joinGame = async () => {
 
   setRoomCode(state.roomCode as string);
   setUserName(state.userName as string);
-  // Remember which backend this room is on so the player view connects with the
-  // right transport (legacy socket.io vs the new relay).
-  setRoomLegacy(!!state.room.legacy);
 
   router.push("/play");
 };
