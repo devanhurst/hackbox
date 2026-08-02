@@ -17,7 +17,6 @@ Runs entirely on Cloudflare (Durable Objects + D1 + Workers).
 | `admin/` | Nuxt 3 admin dashboard (`hackbox-admin`). |
 | `db/` | Cloudflare D1 schema (room/member history). |
 | `docs/` | Public docs site ([hackbox.ca/docs](https://hackbox.ca/docs)). |
-| `server/` | Legacy Node/Socket.io server — deprecated. |
 
 ## Docs
 

@@ -44,6 +44,4 @@ export interface PlayerStatePayload {
 export interface FindRoomResponse {
   exists: boolean;
   twitchRequired?: boolean;
-  // True when the room lives on the legacy socket.io server rather than the relay.
-  legacy?: boolean;
 }

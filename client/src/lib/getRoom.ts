@@ -11,8 +11,6 @@ const probe = async (url: string): Promise<FindRoomResponse | null> => {
   }
 };
 
-// Probe the new relay first, then fall back to the legacy server (for rooms
-// hosted by not-yet-updated Unity games).
 export const getRoom = async ({
   roomCode,
   userId,
@@ -22,11 +20,8 @@ export const getRoom = async ({
 }): Promise<FindRoomResponse> => {
   if (roomCode.length !== 4) return { exists: false };
 
-  const fromNew = await probe(`${config.apiUrl}/rooms/${roomCode}?userId=${userId}`);
-  if (fromNew?.exists) return { ...fromNew, legacy: false };
-
-  const fromLegacy = await probe(`${config.legacyServerUrl}/rooms/${roomCode}?userId=${userId}`);
-  if (fromLegacy?.exists) return { ...fromLegacy, legacy: true };
+  const room = await probe(`${config.apiUrl}/rooms/${roomCode}?userId=${userId}`);
+  if (room?.exists) return room;
 
   return { exists: false };
 };

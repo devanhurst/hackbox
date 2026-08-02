@@ -15,9 +15,8 @@
   "main": "index.js",
   "scripts": {
     "dev:client": "cd client && npm run dev",
-    "dev:server": "cd server && npm run dev",
     "dev:docs": "cd docs && npm run dev",
-    "dev": "concurrently -n \"server,client,docs\" -c \"blue,magenta,green\" \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:docs\"",
+    "dev": "concurrently -n \"client,docs\" -c \"magenta,green\" \"npm run dev:client\" \"npm run dev:docs\"",
     "lint": "oxlint --type-aware",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",

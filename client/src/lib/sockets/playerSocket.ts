@@ -1,16 +1,9 @@
 import config from "@/config";
 import { createHackboxSocket, type HackboxSocket } from "@/lib/sockets/hackboxSocket";
-import { createLegacySocket } from "@/lib/sockets/legacySocket";
 import { reactive } from "vue";
 import type { Router } from "vue-router";
 import type { PlayerState, PlayerStatePayload } from "@/types";
-import {
-  getUserId,
-  getUserName,
-  getRoomCode,
-  getRoomLegacy,
-  getTwitchAccessToken,
-} from "@/lib/browserStorage";
+import { getUserId, getUserName, getRoomCode, getTwitchAccessToken } from "@/lib/browserStorage";
 import { expandStatePresets, processFonts } from "../stateHelpers";
 import merge from "lodash/merge";
 import cloneDeep from "lodash/cloneDeep";
@@ -27,9 +20,9 @@ const stateSkeleton = {
 };
 
 const attachPlayerEvents = (socket: HackboxSocket, state: PlayerState, router: Router) => {
-  // The SDK preserves the legacy socket.io disconnect semantics: transient
-  // reasons (it reconnects under the hood) vs terminal ones (room gone/closed/
-  // expired, duplicate device) that should send the player home.
+  // The SDK splits disconnects into transient reasons (it reconnects under the
+  // hood) vs terminal ones (room gone/closed/expired, duplicate device) that
+  // should send the player home.
   socket.on("disconnect", (reason) => {
     const reconnectReasons = ["ping timeout", "transport close", "transport error"];
     if (reconnectReasons.includes(reason as string)) return;
@@ -65,11 +58,7 @@ const initializePlayerSocket = (router: Router) => {
     },
   };
 
-  // Pick the transport for this room: the legacy socket.io server for rooms still
-  // hosted on the old backend, otherwise the new relay. The interface is the same.
-  const socket: HackboxSocket = getRoomLegacy()
-    ? createLegacySocket(common)
-    : createHackboxSocket({ host: config.relayHost, ...common });
+  const socket: HackboxSocket = createHackboxSocket({ host: config.relayHost, ...common });
 
   const state = reactive<PlayerState>(cloneDeep(stateSkeleton) as PlayerState);
 
