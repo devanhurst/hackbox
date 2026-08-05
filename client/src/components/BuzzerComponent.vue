@@ -23,6 +23,7 @@ const props = mergeProps(
       fontSize: "70px",
       height: "300px",
       border: "2px solid white",
+      margin: "10px 0px",
     },
   },
   custom,
@@ -67,7 +68,7 @@ onUnmounted(() => {
 
 <style scoped>
 .buzzer-button {
-  margin: 0;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
