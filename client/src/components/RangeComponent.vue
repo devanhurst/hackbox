@@ -102,7 +102,11 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* The host's `padding` lands on this wrapper (the inner controls are
+   transparent), so border-box is required for `width: 100%` to fit the player
+   column rather than overflow it by the padding + border. */
 .range-input-wrapper {
+  box-sizing: border-box;
   display: flex;
   flex-direction: row;
   padding: 10px;

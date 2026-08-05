@@ -32,7 +32,11 @@ const style = computed(() => applyLegacyAlign(props.style));
 </template>
 
 <style scoped>
+/* The host's `style` is applied inline, so `width`/`padding`/`border` all come
+   from the payload. border-box keeps `width` meaning the visible box, so a
+   padded component still fits the player column instead of overflowing it. */
 .textbox {
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
 }

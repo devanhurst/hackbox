@@ -31,7 +31,6 @@ onBeforeRouteLeave(() => {
           :is="`${comp.type}Component`"
           :key="comp.key"
           :custom="comp.props"
-          class="player-component"
         />
       </div>
     </div>
@@ -89,11 +88,6 @@ onBeforeRouteLeave(() => {
   width: 100%;
   min-width: v-bind("state.theme.main.minWidth || '300px'");
   max-width: v-bind("state.theme.main.maxWidth || '350px'");
-}
-
-.player-component {
-  margin-top: 10px;
-  margin-bottom: 10px;
 }
 
 .input-area {
