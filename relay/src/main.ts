@@ -392,8 +392,10 @@ export class Room extends Server<Env> {
 
     // Explicit, queryable Workers Log for every player message (the raw
     // per-invocation "websocket:message" log carries no payload — this is its
-    // replacement, see relay/wrangler.toml).
-    console.log("player:message", {
+    // replacement, see relay/wrangler.toml). Room + player go in the message
+    // string itself, not just the structured fields, so they're greppable/
+    // skimmable straight off the log line.
+    console.log(`player:message room=${this.name} user=${state.userName}(${state.userId})`, {
       room: this.name,
       userId: state.userId,
       userName: state.userName,
