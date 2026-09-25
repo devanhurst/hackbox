@@ -47,7 +47,9 @@ function keyFor(seq: number): string {
   return KEY_PREFIX + String(seq).padStart(16, "0");
 }
 
-function clampPayload(payload: unknown): unknown {
+// Exported for reuse by the console.log-based player-message log in main.ts —
+// same size hazard (an oversized payload), same fix.
+export function clampPayload(payload: unknown): unknown {
   let json: string;
   try {
     json = JSON.stringify(payload) ?? "null";
