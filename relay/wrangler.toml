@@ -68,4 +68,8 @@ head_sampling_rate = 1
 
 [observability.logs]
 enabled = true
-invocation_logs = true
+# The per-invocation summary log (e.g. "websocket:message", one per WS frame,
+# with no payload) is noisy and carries no content. console.log calls (e.g.
+# the "player:message" log in src/main.ts) still ship as Workers Logs with
+# `enabled = true` above; this just turns off the contentless auto entries.
+invocation_logs = false

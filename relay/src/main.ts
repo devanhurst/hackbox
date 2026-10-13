@@ -1,5 +1,5 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
-import { MessageLog } from "./messageLog";
+import { MessageLog, clampPayload } from "./messageLog";
 import { defaultMemberState, sanitizeState, stripNullBytes, type MemberState } from "./roomState";
 import { authenticateWithTwitch, type TwitchMetadata } from "./twitch";
 
@@ -389,6 +389,22 @@ export class Room extends Server<Env> {
     if (!payload) return;
 
     const timestamp = Date.now();
+
+    // Explicit, queryable Workers Log for every player message (the raw
+    // per-invocation "websocket:message" log carries no payload — this is its
+    // replacement, see relay/wrangler.toml). Room + player go in the message
+    // string itself, not just the structured fields, so they're greppable/
+    // skimmable straight off the log line.
+    console.log(`player:message room=${this.name} user=${state.userName}(${state.userId})`, {
+      room: this.name,
+      userId: state.userId,
+      userName: state.userName,
+      type: envelope.type,
+      event: payload.event ?? null,
+      payload: clampPayload(payload),
+      timestamp,
+    });
+
     this.sendToHosts(
       this.encode(envelope.type, {
         from: state.userId,
