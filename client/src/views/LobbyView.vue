@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   getUserId,
@@ -11,7 +11,6 @@ import {
   getTwitchAccessToken,
   deleteTwitchAccessToken,
 } from "@/lib/browserStorage";
-import router from "@/router";
 import config from "@/config";
 import { getRoom } from "@/lib/getRoom";
 import type { FindRoomResponse } from "@/types";
@@ -67,8 +66,15 @@ const logOutOfTwitch = () => {
 };
 
 const route = useRoute();
+const router = useRouter();
+const mounted = ref(false);
 
+// The prerendered HTML can't know what this browser has stored, so reading it
+// during setup would make the first client render disagree with that HTML.
 onMounted(() => {
+  mounted.value = true;
+  state.roomCode = (route.query.room as string | undefined)?.slice(0, 4) || getRoomCode();
+  state.userName = getUserName();
   updateTwitchData();
   updateRoom();
 });
@@ -119,12 +125,10 @@ const joinGame = async () => {
 };
 
 const state = reactive({
-  roomCode: route.query.room?.slice(0, 4) || getRoomCode(),
-  userName: getUserName(),
+  roomCode: "",
+  userName: "",
   room: { exists: false, twitchRequired: false } as FindRoomResponse,
 });
-
-updateRoom();
 </script>
 
 <template>
@@ -134,7 +138,7 @@ updateRoom();
         <div class="lobby-nav--left"></div>
         <div class="lobby-nav--center">hackbox</div>
         <div class="lobby-nav--right">
-          <div v-if="config.twitchClientId">
+          <div v-if="mounted && config.twitchClientId">
             <div v-if="!twitchData" class="twitch-icon--container__logged-out">
               <a
                 :href="`https://id.twitch.tv/oauth2/authorize?client_id=${config.twitchClientId}&redirect_uri=${config.clientUrl}/twitch-auth-callback&response_type=token`"

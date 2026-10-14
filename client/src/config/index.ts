@@ -5,16 +5,19 @@
 // URL into the bundle, which the browser blocked as mixed content). The VITE_*
 // values still win when provided (e.g. to point at a different host).
 const isDev = import.meta.env.DEV;
+// The lobby is prerendered in Node at build time, where there is no window;
+// nothing rendered there may depend on these origin-derived values.
+const location = typeof window === "undefined" ? undefined : window.location;
 
 export default {
   clientUrl:
-    import.meta.env.VITE_CLIENT_URL || (isDev ? "http://localhost:9001" : window.location.origin),
+    import.meta.env.VITE_CLIENT_URL || (isDev ? "http://localhost:9001" : location?.origin),
   apiUrl:
     import.meta.env.VITE_API_URL ||
-    (isDev ? "http://localhost:8787/api" : `${window.location.origin}/api`),
+    (isDev ? "http://localhost:8787/api" : `${location?.origin}/api`),
   // Host[:port] only — no protocol or path; the SDK adds the "/r" prefix and
   // partysocket infers ws/wss.
-  relayHost: import.meta.env.VITE_RELAY_HOST || (isDev ? "localhost:1999" : window.location.host),
+  relayHost: import.meta.env.VITE_RELAY_HOST || (isDev ? "localhost:1999" : location?.host),
   sentryEnabled: import.meta.env.VITE_SENTRY_ENABLED === "true",
   sentryDomain: import.meta.env.VITE_SENTRY_DOMAIN,
   sentryProjectId: import.meta.env.VITE_SENTRY_PROJECT_ID,

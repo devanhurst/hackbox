@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { provide } from "vue";
 import initializePlayerSocket from "@/lib/sockets/playerSocket";
-import router from "@/router";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRouter } from "vue-router";
 
 const props = defineProps({
   windowHeight: String,
 });
 
+const router = useRouter();
 const { socket, state } = initializePlayerSocket(router);
 provide("socket", socket);
 document.addEventListener("contextmenu", (event) => event.preventDefault());

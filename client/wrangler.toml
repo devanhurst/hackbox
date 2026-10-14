@@ -18,11 +18,15 @@ routes = [{ pattern = "hackbox.ca", custom_domain = true }]
 [build]
 command = "npm run build-only"
 
-# Vite's default output directory.
+# Vite's default output directory. `npm run build-only` also prerenders the
+# lobby into index.html and writes the empty SPA shell to 200.html.
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
+# No not_found_handling: unmatched paths fall through to worker/index.js, which
+# answers them with the SPA shell. Cloudflare's "single-page-application" mode
+# would serve /index.html, which is the prerendered lobby.
+not_found_handling = "none"
 
 [observability]
 enabled = true

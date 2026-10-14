@@ -151,6 +151,16 @@ player client except the transport. Key files:
 - `src/types.ts` — `PlayerState`, `ThemeState`, `UiState`. No Vuex/Pinia; state
   is Vue's `reactive()`.
 
+**Prerendering:** the lobby (`/`) is prerendered at build time so it paints before
+any JS loads. `npm run build-only` runs the client build, an SSR build of
+`src/entry-server.ts`, then `scripts/prerender.mjs`, which writes the rendered
+lobby to `dist/index.html` and the empty SPA shell to `dist/200.html`.
+`worker/index.js` serves `/200` for every unmatched path (wrangler uses
+`not_found_handling = "none"`, since the SPA mode would serve the lobby HTML for
+`/play`). The lobby hydrates, so its setup must not read browser-only state
+(`localStorage`, `route.query`, `window`) — do that in `onMounted`. The same
+goes for `App.vue` and anything the lobby imports (`src/config` guards `window`).
+
 ### Admin (`admin/`) — the monitor dashboard
 
 Nuxt 3 SPA (`ssr: false`), deployed as a Cloudflare Worker via the Nitro
