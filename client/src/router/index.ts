@@ -1,36 +1,39 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, type RouterHistory } from "vue-router";
+import LobbyView from "../views/LobbyView.vue";
 import { setTwitchAccessToken } from "@/lib/browserStorage";
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: "/",
-      name: "lobby",
-      component: () => import("../views/LobbyView.vue"),
-    },
-    {
-      path: "/play",
-      name: "play",
-      component: () => import("../views/PlayerView.vue"),
-    },
-    {
-      path: "/twitch-auth-callback",
-      name: "twitch-auth-callback",
-      component: () => {},
-      beforeEnter: async (to) => {
-        const hash = new URLSearchParams(to.hash.substring(1));
-        const accessToken = hash.get("access_token");
-
-        if (accessToken) {
-          setTwitchAccessToken(accessToken);
-        }
-
-        router.push("/");
+export function createAppRouter(history: RouterHistory) {
+  const router = createRouter({
+    history,
+    routes: [
+      {
+        path: "/",
+        name: "lobby",
+        component: LobbyView,
       },
-    },
-    { path: "/:pathMatch(.*)*", redirect: "/" },
-  ],
-});
+      {
+        path: "/play",
+        name: "play",
+        component: () => import("../views/PlayerView.vue"),
+      },
+      {
+        path: "/twitch-auth-callback",
+        name: "twitch-auth-callback",
+        component: () => {},
+        beforeEnter: async (to) => {
+          const hash = new URLSearchParams(to.hash.substring(1));
+          const accessToken = hash.get("access_token");
 
-export default router;
+          if (accessToken) {
+            setTwitchAccessToken(accessToken);
+          }
+
+          router.push("/");
+        },
+      },
+      { path: "/:pathMatch(.*)*", redirect: "/" },
+    ],
+  });
+
+  return router;
+}

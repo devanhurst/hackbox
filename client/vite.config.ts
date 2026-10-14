@@ -5,17 +5,20 @@ import vue from "@vitejs/plugin-vue";
 import vueJsx from "@vitejs/plugin-vue-jsx";
 
 // https://vitejs.dev/config/
-export default defineConfig(() => {
+export default defineConfig(({ isSsrBuild }) => {
   return {
     plugins: [
       vue({}),
       vueJsx({}),
-      sentryVitePlugin({
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        org: "hackbox",
-        project: "client",
-      }),
+      // The SSR bundle is only run at build time and is never deployed.
+      !isSsrBuild &&
+        sentryVitePlugin({
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          org: "hackbox",
+          project: "client",
+        }),
     ],
+    build: { copyPublicDir: !isSsrBuild },
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

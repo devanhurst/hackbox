@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "PORT=9001 vite",
     "build": "npm run type-check && npm run build-only",
-    "build-only": "vite build",
+    "build-only": "vite build && vite build --ssr src/entry-server.ts --outDir dist-ssr && node scripts/prerender.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "vue-tsc --noEmit -p tsconfig.json --composite false"

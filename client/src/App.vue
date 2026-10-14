@@ -1,23 +1,21 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { RouterView } from "vue-router";
-import { getUserId } from "@/lib/browserStorage";
 
-getUserId();
-
-let windowHeight = ref(window.innerHeight);
+let windowHeight = ref<string>("100dvh");
 
 const onHeightChange = () => {
-  windowHeight.value = window.innerHeight;
+  windowHeight.value = window.innerHeight + 1 + "px";
 };
 
 onMounted(() => {
+  onHeightChange();
   window.addEventListener("resize", onHeightChange);
 });
 </script>
 
 <template>
-  <RouterView :window-height="windowHeight + 1 + 'px'" />
+  <RouterView :window-height="windowHeight" />
 </template>
 
 <style>
