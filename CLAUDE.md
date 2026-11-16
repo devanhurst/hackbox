@@ -260,6 +260,9 @@ other by swapping the worker segment of their own hostname:
 - **client** → api and relay (`client/src/config/index.ts`). A client opened
   from a deployment URL (an 8-hex id instead of the branch) has no sibling and
   uses `hackbox.ca`.
+- **docs** → api and relay, for the live demo
+  (`docs/components/DeviceConnection.vue`), with the same deployment-URL
+  fallback to `hackbox.ca`.
 - **api** and **admin** → relay. A Preview's service bindings always reach the
   bound Worker's *production* deployment, so Previews have no `RELAY` binding
   and call their branch's relay Preview over HTTPS (`api/src/relay.ts`,

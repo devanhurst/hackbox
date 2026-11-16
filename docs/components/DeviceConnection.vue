@@ -29,6 +29,7 @@
 
 <script setup lang="ts">
 import { createHackboxSocket, type HackboxSocket } from "~/utils/hackboxSocket";
+import { siblingPreviewHost } from "~/utils/previewHosts";
 
 const config = useRuntimeConfig();
 
@@ -46,12 +47,26 @@ const localRoomCode = ref<string | null>(null);
 
 const roomCode = computed(() => localRoomCode.value || props.roomCode);
 
+// A Preview of the docs is served on workers.dev, which has no /api or /r
+// routes of its own. A branch Preview talks to the same branch's api and relay
+// Previews; a deployment URL has no branch to match, so it uses production.
+function previewHost(worker: string): string | undefined {
+  const hostname = window.location.hostname;
+  if (!hostname.endsWith(".workers.dev")) return undefined;
+  return siblingPreviewHost(hostname, "hackbox-docs", worker) ?? "hackbox.ca";
+}
+
 function resolveEndpoints() {
+  if (import.meta.dev) {
+    return {
+      apiUrl: config.public.apiUrl || "http://localhost:8787/api",
+      relayHost: config.public.relayHost || "localhost:1999",
+    };
+  }
+  const apiHost = previewHost("hackbox-api");
   const apiUrl =
-    config.public.apiUrl ||
-    (import.meta.dev ? "http://localhost:8787/api" : `${window.location.origin}/api`);
-  const relayHost =
-    config.public.relayHost || (import.meta.dev ? "localhost:1999" : window.location.host);
+    config.public.apiUrl || (apiHost ? `https://${apiHost}/api` : `${window.location.origin}/api`);
+  const relayHost = config.public.relayHost || previewHost("hackbox-relay") || window.location.host;
   return { apiUrl, relayHost };
 }
 
