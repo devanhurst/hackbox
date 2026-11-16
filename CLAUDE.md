@@ -198,6 +198,10 @@ any `IN (...)` over a variable-length list (see `fetchMembersByRoom` in
 
 ### Tooling
 
+The repo is an **npm workspaces** monorepo: one root `package-lock.json`
+installs every Worker (`npm ci` at the root). Run one workspace's script with
+`npm -w hackbox-<dir> run <script>` or from inside its directory.
+
 Lint/format are at the **repo root** (oxlint + oxfmt), enforced by a Husky +
 lint-staged pre-commit hook:
 
@@ -227,13 +231,67 @@ cd docs  && npm run dev   # nuxt dev (:9002)
 ```
 
 Each Worker dir has `npm run type-check` (`tsc --noEmit`, or `nuxt typecheck` /
-`vue-tsc` for admin/client) and `npm run deploy` (`wrangler deploy`, prefixed by
-a build for admin/client/docs). Deploys also run automatically via **Workers
-Builds** on pushes that touch each Worker's root dir.
+`vue-tsc` for admin/client) and `npm run deploy` (`wrangler deploy`; for
+admin/client/docs the build runs from the `[build]` block in `wrangler.toml`).
+
+### Deployment and Previews (Workers Builds)
+
+Each Worker is its own Workers Builds project pointed at this repo, all
+configured the same way:
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `/` (the single root lockfile lives there) |
+| Build command | empty — admin/client/docs build from `[build]` in `wrangler.toml` |
+| Deploy command (`main`) | `npx wrangler deploy -c <dir>/wrangler.toml` |
+| Preview command (other branches) | `npx wrangler preview -c <dir>/wrangler.toml` |
+| Build watch paths | everything (see below) |
+
+`[build]` runs from the invocation directory (the repo root) while paths in the
+config resolve relative to the config file, so each build command targets its
+workspace with `npm -w`. The admin's `-c` also matters: without it wrangler
+would read the config Nitro generates under `admin/.output` instead.
+
+Every non-`main` push builds a [Worker
+Preview](https://developers.cloudflare.com/workers/previews/) of every Worker,
+at `<branch>-<worker>.<subdomain>.workers.dev`. A branch's Previews find each
+other by swapping the worker segment of their own hostname:
+
+- **client** → api and relay (`client/src/config/index.ts`). A client opened
+  from a deployment URL (an 8-hex id instead of the branch) has no sibling and
+  uses `hackbox.ca`.
+- **api** and **admin** → relay. A Preview's service bindings always reach the
+  bound Worker's *production* deployment, so Previews have no `RELAY` binding
+  and call their branch's relay Preview over HTTPS (`api/src/relay.ts`,
+  `admin/server/utils/previewRelay.ts`).
+
+That is why watch paths must not be narrowed per Worker: a branch whose push
+skipped one Worker's build has no Preview of it for the others to find.
+
+Previews inherit no production vars or bindings, so each `wrangler.toml`
+restates them in a `previews` block (`ENVIRONMENT = "preview"`, plus the
+relay's DO binding and `TWITCH_CLIENT_ID`). Each relay Preview gets its own
+Durable Object namespace; Previews share the production `hackbox` D1 database.
+
+A Preview's `workers.dev` URL is public, so two things that production gets
+from routing need explicit guards:
+
+- The relay's `/admin/*` routes require `x-hackbox-admin: <ADMIN_SECRET>` in a
+  Preview and refuse when no secret is set (`relay/src/index.ts`). Set the same
+  value on both Workers' Previews base config:
+  `npx wrangler preview base-config secret put ADMIN_SECRET -c relay/wrangler.toml`
+  and `-c admin/wrangler.toml`. Base secrets reach only Previews created
+  afterwards; an existing branch needs `npx wrangler preview secret put
+  ADMIN_SECRET --name <branch>` on each.
+- The admin is not behind Cloudflare Access on `workers.dev`, and reads the
+  production database. Its server routes refuse every request in a Preview
+  until an Access application covers its Preview URLs and
+  `PREVIEW_ACCESS_PROTECTED` is set to `"true"` in `admin/wrangler.toml`
+  (`admin/server/middleware/previewAccess.ts`).
 
 ### Tests
 
-Every project has a Vitest suite (`cd <dir> && npm test`, or `npm run test:watch`).
+Every project has a Vitest suite (`npm -w hackbox-<dir> test`, `cd <dir> && npm test`, or `npm run test:watch`).
 The two Workers (`relay/`, `api/`) run via **`@cloudflare/vitest-pool-workers`** —
 tests execute *inside* `workerd` (config: each Worker's `vitest.config.ts`);
 `client/` runs in **jsdom** with `@vue/test-utils`; `admin/` runs in plain

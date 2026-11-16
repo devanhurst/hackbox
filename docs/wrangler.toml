@@ -1,6 +1,10 @@
 name = "hackbox-docs"
 compatibility_date = "2026-04-09"
 workers_dev = true
+preview_urls = true
+# Worker Previews need a previews block. The docs site has no bindings
+# to restate, and [assets] applies to Previews as it is.
+previews = {}
 
 # Serve the prerendered docs site at hackbox.ca/docs*. This route is more
 # specific than the client's apex catch-all (hackbox.ca), so it takes precedence
@@ -18,11 +22,12 @@ routes = [{ pattern = "hackbox.ca/docs*", zone_name = "hackbox.ca" }]
 # Worker serves). Nitro writes the public output into dist/docs/ (see
 # nuxt.config.ts) so on-disk paths line up with the /docs/* URLs served here.
 #
-# NOTE: no [build] here — mirrors admin/wrangler.toml. The build must run before
-# deploy; locally the `deploy`/`preview` npm scripts chain it, and in Workers
-# Builds it's the dashboard "Build command" (`npm run build`, root directory
-# docs/, which installs devDeps automatically). Keeping it out of this file avoids
-# a redundant second build during `wrangler deploy`.
+# wrangler runs [build] from the invocation directory (the repo root in Workers
+# Builds) but resolves [assets] relative to this file, so the command targets
+# the workspace explicitly.
+[build]
+command = "npm -w hackbox-docs run build"
+
 [assets]
 directory = "./dist"
 # No `binding` / `main`: this is an assets-only Worker (no server code reads the

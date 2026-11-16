@@ -2,11 +2,12 @@ name = "hackbox-api"
 main = "src/index.ts"
 compatibility_date = "2026-04-09"
 workers_dev = true
+preview_urls = true
 
-# This worker's dependencies are installed by Workers Builds (its root directory
-# is set to api/, which has its own package-lock.json), so no [build] step is
-# needed — wrangler bundles `main` directly. Workers Builds triggers a deploy on
-# pushes that change files under api/.
+# Workers Builds installs from the repo root (root directory `/`, one
+# package-lock.json for every workspace), so no [build] step is needed here —
+# wrangler bundles `main` directly. Deploy and preview commands pass
+# `-c api/wrangler.toml`.
 
 # Serve the HTTP API under the apex at hackbox.ca/api/* — a path prefix, not an
 # `api.` subdomain (subdomains get reset by some users' SNI-filtering middleboxes).
@@ -19,6 +20,13 @@ routes = [{ pattern = "hackbox.ca/api/*", zone_name = "hackbox.ca" }]
 [[services]]
 binding = "RELAY"
 service = "hackbox-relay"
+
+# Worker Previews inherit no vars or bindings. There is no RELAY service
+# binding here: a Preview's service bindings reach the production relay, so a
+# preview api calls its branch's relay Preview over HTTPS instead
+# (previewRelay in src/relay.ts).
+[previews.vars]
+ENVIRONMENT = "preview"
 
 [observability]
 enabled = true

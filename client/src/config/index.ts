@@ -1,3 +1,5 @@
+import { siblingPreviewHost } from "@/lib/previewHosts";
+
 // In production the api and relay Workers are co-located with the client on the
 // same origin (hackbox.ca/api, hackbox.ca/r/*), so default to the current origin
 // rather than localhost. This means a prod build works even if the VITE_* vars
@@ -9,15 +11,29 @@ const isDev = import.meta.env.DEV;
 // nothing rendered there may depend on these origin-derived values.
 const location = typeof window === "undefined" ? undefined : window.location;
 
+// A Preview of the client is served on workers.dev, which has no /api or /r
+// routes of its own. A branch Preview talks to the same branch's api and relay
+// Previews; a deployment URL has no branch to match, so it uses production.
+function previewHost(worker: string): string | undefined {
+  if (!location?.hostname.endsWith(".workers.dev")) return undefined;
+  return siblingPreviewHost(location.hostname, "hackbox-client", worker) ?? "hackbox.ca";
+}
+const previewApiHost = previewHost("hackbox-api");
+const previewRelayHost = previewHost("hackbox-relay");
+
 export default {
   clientUrl:
     import.meta.env.VITE_CLIENT_URL || (isDev ? "http://localhost:9001" : location?.origin),
   apiUrl:
     import.meta.env.VITE_API_URL ||
-    (isDev ? "http://localhost:8787/api" : `${location?.origin}/api`),
+    (isDev
+      ? "http://localhost:8787/api"
+      : `${previewApiHost ? `https://${previewApiHost}` : location?.origin}/api`),
   // Host[:port] only — no protocol or path; the SDK adds the "/r" prefix and
   // partysocket infers ws/wss.
-  relayHost: import.meta.env.VITE_RELAY_HOST || (isDev ? "localhost:1999" : location?.host),
+  relayHost:
+    import.meta.env.VITE_RELAY_HOST ||
+    (isDev ? "localhost:1999" : previewRelayHost || location?.host),
   sentryEnabled: import.meta.env.VITE_SENTRY_ENABLED === "true",
   sentryDomain: import.meta.env.VITE_SENTRY_DOMAIN,
   sentryProjectId: import.meta.env.VITE_SENTRY_PROJECT_ID,
