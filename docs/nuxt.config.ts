@@ -55,9 +55,10 @@ export default defineNuxtConfig({
   },
   // Optional overrides for the playground's backend endpoints. Left empty by
   // default: the playground derives them from the current origin at runtime (in
-  // production the docs are served from hackbox.ca alongside the api/relay, and
-  // in dev it points at the local Worker ports). Set these to target a specific
-  // host. See components/DeviceConnection.vue.
+  // production the docs are served from hackbox.ca alongside the api/relay, a
+  // workers.dev Preview uses its branch's api and relay Previews, and in dev it
+  // points at the local Worker ports). Setting these overrides that for every
+  // build, Previews included. See components/DeviceConnection.vue.
   runtimeConfig: {
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || "",
