@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { generateRoomCode, RelayClient } from "../src/relay";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { generateRoomCode, previewRelay, RelayClient } from "../src/relay";
 
 // A stub service binding: records the requests RelayClient makes and replays
 // canned responses, so initRoom/probeRoom can be tested without the real relay.
@@ -95,5 +95,29 @@ describe("RelayClient.probeRoom", () => {
     await expect(new RelayClient(fetcher).probeRoom("BCDF")).rejects.toThrow(
       /relay probe failed: 500/,
     );
+  });
+});
+
+describe("previewRelay", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("sends requests to the same branch's relay Preview", async () => {
+    const fetchMock = vi.fn(async (_req: Request) => new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const relay = previewRelay("claude-x-ab12cd-hackbox-api.devan-hurst.workers.dev");
+    await relay!.fetch(
+      new Request("https://hackbox-relay/r/BCDF/init", { method: "POST", body: "{}" }),
+    );
+
+    const sent = fetchMock.mock.calls[0]![0];
+    expect(sent.url).toBe(
+      "https://claude-x-ab12cd-hackbox-relay.devan-hurst.workers.dev/r/BCDF/init",
+    );
+    expect(sent.method).toBe("POST");
+  });
+
+  it("has no relay for a deployment host, so the api cannot fall back to production", () => {
+    expect(previewRelay("18f050f3-hackbox-api.devan-hurst.workers.dev")).toBeNull();
   });
 });

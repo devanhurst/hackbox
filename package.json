@@ -12,6 +12,13 @@
     "type": "git",
     "url": "git+https://github.com/devanhurst/hackbox.git"
   },
+  "workspaces": [
+    "relay",
+    "api",
+    "client",
+    "admin",
+    "docs"
+  ],
   "main": "index.js",
   "scripts": {
     "dev:client": "cd client && npm run dev",
@@ -30,7 +37,8 @@
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.55.0",
     "oxlint": "^1.70.0",
-    "oxlint-tsgolint": "^0.23.0"
+    "oxlint-tsgolint": "^0.23.0",
+    "wrangler": "^4.162.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": "npm run lint",

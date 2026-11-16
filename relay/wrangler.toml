@@ -6,11 +6,15 @@ compatibility_date = "2026-04-09"
 # *.workers.dev URL would expose it, so the relay is reachable only via the
 # hackbox.ca/r/* zone route + service bindings.
 workers_dev = false
+# Worker Previews are served on their own workers.dev URLs, configured
+# separately from the production one above. A Preview's /admin/* requires
+# ADMIN_SECRET (src/index.ts), so these URLs do not expose it.
+preview_urls = true
 
-# This worker's dependencies are installed by Workers Builds (its root directory
-# is set to relay/, which has its own package-lock.json), so no [build] step is
-# needed — wrangler bundles `main` directly. Workers Builds triggers a deploy on
-# pushes that change files under relay/.
+# Workers Builds installs from the repo root (root directory `/`, one
+# package-lock.json for every workspace), so no [build] step is needed here —
+# wrangler bundles `main` directly. Deploy and preview commands pass
+# `-c relay/wrangler.toml`.
 
 # Serve the relay under the apex at hackbox.ca/r/* — a single static path
 # prefix, not a `relay.` subdomain (those get reset by some users' SNI-filtering
@@ -61,6 +65,25 @@ crons = ["0 4 * * *"]
 # (VITE_TWITCH_CLIENT_ID) or token validation 401s.
 [vars]
 TWITCH_CLIENT_ID = "qlfz8nlzzkq20jhl1xuawhza5xa3fm"
+
+# Worker Previews: each branch gets its own relay Preview with its own Durable
+# Object namespace. Previews inherit no vars or bindings, so each is restated;
+# they share the production database. Routes and the cron trigger stay
+# production-only. ADMIN_SECRET is a secret on the Previews base config, the
+# same value as the admin's:
+#   npx wrangler preview base-config secret put ADMIN_SECRET
+[previews.vars]
+ENVIRONMENT = "preview"
+TWITCH_CLIENT_ID = "qlfz8nlzzkq20jhl1xuawhza5xa3fm"
+
+[[previews.durable_objects.bindings]]
+name = "Main"
+class_name = "Room"
+
+[[previews.d1_databases]]
+binding = "DB"
+database_name = "hackbox"
+database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"
 
 [observability]
 enabled = true

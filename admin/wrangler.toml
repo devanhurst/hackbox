@@ -3,11 +3,18 @@ name = "hackbox-admin"
 # entry + static assets land under .output (see nuxt.config.ts).
 main = "./.output/server/index.mjs"
 compatibility_date = "2026-04-09"
-compatibility_flags = ["nodejs_compat"]
+# no_nodejs_compat_v2 matches what Nitro's generated config sets: Nitro ships
+# its own Node polyfills (unenv).
+compatibility_flags = ["nodejs_compat", "no_nodejs_compat_v2"]
 
 # workers_dev disabled so the admin tool is reachable ONLY via the
 # Access-protected custom domain below — never via a public *.workers.dev URL.
 workers_dev = false
+# Worker Previews get their own workers.dev URLs, which are NOT behind the
+# Access app on hackbox.ca/admin*. Their server routes refuse every request
+# until PREVIEW_ACCESS_PROTECTED below is "true"
+# (server/middleware/previewAccess.ts).
+preview_urls = true
 
 # Serve the admin tool at hackbox.ca/admin*. This route MUST be protected with a
 # Cloudflare Access (Zero Trust) application — it can create rooms and list every
@@ -19,11 +26,13 @@ routes = [{ pattern = "hackbox.ca/admin*", zone_name = "hackbox.ca" }]
 directory = "./.output/public"
 binding = "ASSETS"
 
-# NOTE: no [build] here. The Nuxt build (`npm run build`) must run before deploy
-# — locally the `deploy` npm script chains it, and in Workers Builds it's the
-# dashboard "Build command". Keeping it out of this file prevents Nitro from
-# copying it into the generated .output config (which would re-trigger the build
-# recursively). Workers Builds (root dir admin/) deploys on pushes under admin/.
+# wrangler runs [build] from the invocation directory (the repo root in Workers
+# Builds) but resolves paths relative to this file, so the command targets the
+# workspace explicitly. Deploy and preview pass `-c admin/wrangler.toml`, which
+# makes wrangler read this file rather than the config Nitro generates under
+# .output (that one is only picked up when no -c is given).
+[build]
+command = "npm -w hackbox-admin run build"
 
 # Service binding to the relay Worker: the admin tool creates/imports rooms
 # (relay /r/<code>/init) and fetches live presence (relay /admin/room/<code>).
@@ -34,6 +43,26 @@ service = "hackbox-relay"
 # Permanent room history (shared with the relay). The admin reads the listing
 # from here; the relay writes it.
 [[d1_databases]]
+binding = "DB"
+database_name = "hackbox"
+database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"
+
+# Worker Previews inherit no vars or bindings, so each is restated; they share
+# the production database. There is no RELAY service binding: a Preview's
+# service bindings reach the production relay, so an admin Preview calls its
+# branch's relay Preview over HTTPS with ADMIN_SECRET
+# (server/utils/previewRelay.ts), a secret on the Previews base config, the
+# same value as the relay's:
+#   npx wrangler preview base-config secret put ADMIN_SECRET
+#
+# Set PREVIEW_ACCESS_PROTECTED to "true" only once a Cloudflare Access
+# application covers this Worker's Preview URLs: an admin Preview reads the
+# production room history, and the Worker has no auth of its own.
+[previews.vars]
+ENVIRONMENT = "preview"
+PREVIEW_ACCESS_PROTECTED = "false"
+
+[[previews.d1_databases]]
 binding = "DB"
 database_name = "hackbox"
 database_id = "a49f51a3-4b43-4f2c-8dc5-2220d9f58df9"

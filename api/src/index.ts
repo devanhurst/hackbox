@@ -1,9 +1,15 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
-import { generateRoomCode, RelayClient } from "./relay";
+import { generateRoomCode, previewRelay, RelayClient } from "./relay";
 
 interface Env {
-  RELAY: Fetcher; // service binding to hackbox-relay
+  RELAY?: Fetcher; // service binding to hackbox-relay; absent in Previews
+  ENVIRONMENT?: string; // "preview" in Worker Previews
+}
+
+function relayFor(c: Context<{ Bindings: Env }>): Fetcher | null {
+  if (c.env.ENVIRONMENT === "preview") return previewRelay(new URL(c.req.url).hostname);
+  return c.env.RELAY ?? null;
 }
 
 const MAX_CODE_ATTEMPTS = 8;
@@ -24,7 +30,9 @@ app.post("/rooms", async (c) => {
   }
   const twitchRequired = Boolean(body.twitchRequired);
 
-  const relay = new RelayClient(c.env.RELAY);
+  const fetcher = relayFor(c);
+  if (!fetcher) return c.json({ ok: false, error: "No relay for this host." }, 503);
+  const relay = new RelayClient(fetcher);
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
     const code = generateRoomCode();
     if (await relay.initRoom(code, hostId, twitchRequired)) {
@@ -39,7 +47,9 @@ app.get("/rooms/:roomCode", async (c) => {
   const roomCode = c.req.param("roomCode").toUpperCase();
   const userId = c.req.query("userId");
 
-  const relay = new RelayClient(c.env.RELAY);
+  const fetcher = relayFor(c);
+  if (!fetcher) return c.json({ exists: false });
+  const relay = new RelayClient(fetcher);
   const probe = await relay.probeRoom(roomCode, userId);
 
   if (!probe.exists) return c.json({ exists: false });

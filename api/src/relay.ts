@@ -41,3 +41,33 @@ export class RelayClient {
     return res.json<RoomProbe>();
   }
 }
+
+// Workers Builds serves each branch's Preview of every Worker at
+// `<branch>-<worker>.<subdomain>.workers.dev`. Deployment hosts carry an 8-hex
+// id unique to each Worker instead of the branch, so they have no sibling.
+function siblingPreviewHost(hostname: string, from: string, to: string): string | null {
+  if (!hostname.endsWith(".workers.dev")) return null;
+  const segment = `-${from}.`;
+  const at = hostname.indexOf(segment);
+  if (at <= 0) return null;
+  if (/^[0-9a-f]{8}$/.test(hostname.slice(0, at))) return null;
+  return `${hostname.slice(0, at)}-${to}.${hostname.slice(at + segment.length)}`;
+}
+
+// A Preview's service bindings call the bound Worker's production deployment,
+// so a preview api reaches its own branch's relay Preview over HTTPS instead.
+// Null when this api host has no branch to match, such as a deployment URL;
+// the caller must then refuse rather than use the production relay.
+export function previewRelay(apiHostname: string): Fetcher | null {
+  const relayHost = siblingPreviewHost(apiHostname, "hackbox-api", "hackbox-relay");
+  if (!relayHost) return null;
+  return {
+    fetch(input: RequestInfo | URL, init?: RequestInit) {
+      const req = new Request(input, init);
+      const url = new URL(req.url);
+      url.protocol = "https:";
+      url.host = relayHost;
+      return fetch(new Request(url, req));
+    },
+  } as Fetcher;
+}
